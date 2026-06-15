@@ -1,0 +1,43 @@
+# =========================
+# Environment Variables & Secrets
+# =========================
+.env
+.env.local
+.env.development
+.env.production
+
+# =========================
+# Go (Control Plane & Sandbox)
+# =========================
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+mini-lambda
+
+# Test binaries and coverage
+*.test
+*.out
+
+# =========================
+# Frontend (React / Vanilla JS)
+# =========================
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# =========================
+# OS & IDE Specific
+# =========================
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
