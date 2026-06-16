@@ -17,15 +17,22 @@ func ExecuteJS(code string) string {
 
 	// 2. Redirect Output: Override console.log to capture stdout
 	console := vm.NewObject()
-	console.Set("log", func(call goja.FunctionCall) goja.Value {
-		var parts []string
-		for _, arg := range call.Arguments {
-			parts = append(parts, arg.String())
-		}
-		// Write to our isolated buffer instead of the actual server terminal
-		outputBuilder.WriteString(strings.Join(parts, " ") + "\n")
-		return goja.Undefined()
-	})
+	// Inside your ExecuteJS function...
+
+    console.Set("log", func(call goja.FunctionCall) goja.Value {
+    var logLine string
+    for _, arg := range call.Arguments {
+        logLine += fmt.Sprintf("%v ", arg.Export())
+    }
+    
+    // 1. Keep saving it to the builder for the final HTTP response
+    outputBuilder.WriteString(logLine + "\n")
+    
+    // 2. NEW: Blast it instantly to the frontend terminal!
+    router.BroadcastLog("Live Log: " + logLine) 
+    
+    return goja.Undefined()
+})
 	vm.Set("console", console)
 
 	// 3. Set Timeouts: Prevent infinite loops (Resource Guardrail)

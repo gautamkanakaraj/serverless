@@ -77,8 +77,9 @@ func main() {
 	godotenv.Load()
 	db.InitDB()
 
-	http.HandleFunc("/api/deploy", deployHandler)\
+	http.HandleFunc("/api/deploy", deployHandler)
 	http.HandleFunc("/user/code/", router.ExecuteHandler)
+	http.HandleFunc("/api/ws", router.WsHandler) // live terminal WebSocket endpoint
 
 	port := ":8080"
 	fmt.Printf("Control Plane running on port %s...\n", port)
@@ -87,4 +88,4 @@ func main() {
 	}
 }
 
-// api gateway -> fraud detection -> serverless -> message 
+// api gateway -> fraud detection -> serverless -> message
