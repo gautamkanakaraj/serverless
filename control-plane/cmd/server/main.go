@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"serverless/control-plane/internal/db"
+	"serverless/control-plane/internal/router"
 
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
@@ -76,7 +77,8 @@ func main() {
 	godotenv.Load()
 	db.InitDB()
 
-	http.HandleFunc("/api/deploy", deployHandler)
+	http.HandleFunc("/api/deploy", deployHandler)\
+	http.HandleFunc("/user/code/", router.ExecuteHandler)
 
 	port := ":8080"
 	fmt.Printf("Control Plane running on port %s...\n", port)
@@ -84,3 +86,5 @@ func main() {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }
+
+// api gateway -> fraud detection -> serverless -> message 
