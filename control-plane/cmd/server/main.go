@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"serverless/control-plane/internal/db"
+
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 )
@@ -24,6 +25,18 @@ type DeployResponse struct {
 }
 
 func deployHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. Set standard CORS headers
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	// 2. Catch the invisible browser Preflight request
+	if r.Method == http.MethodOptions {
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// 3. Block anything that isn't a POST request
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -39,8 +52,8 @@ func deployHandler(w http.ResponseWriter, r *http.Request) {
 	publicURL := fmt.Sprintf("/user/code/%s", functionID)
 
 	query := `INSERT INTO functions (id, user_id, code_content, public_url, created_at) 
-	          VALUES ($1, $2, $3, $4, $5)`
-	
+              VALUES ($1, $2, $3, $4, $5)`
+
 	_, err := db.DB.Exec(query, functionID, req.UserID, req.CodeContent, publicURL, time.Now())
 	if err != nil {
 		log.Printf("Failed to insert function: %v", err)
@@ -54,7 +67,7 @@ func deployHandler(w http.ResponseWriter, r *http.Request) {
 		Message:    "Deployment successful!",
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json") // Syntax error fixed here
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(res)
 }
