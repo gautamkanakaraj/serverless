@@ -96,6 +96,25 @@ function handler(event) {
     </div>
 
     <script>
+        // Connect to the Go API Gateway WebSocket
+const socket = new WebSocket('ws://localhost:8080/api/ws');
+
+const terminalWindow = document.getElementById('terminalOutput'); // Ensure this matches your terminal div's ID
+
+socket.onopen = () => {
+    terminalWindow.innerText += "[System] Connected to Control Plane WebSockets...\n";
+};
+
+// Whenever the Go server broadcasts a log line, append it to the terminal!
+socket.onmessage = (event) => {
+    terminalWindow.innerText += event.data + "\n";
+    // Auto-scroll to the bottom of the terminal
+    terminalWindow.scrollTop = terminalWindow.scrollHeight; 
+};
+
+socket.onerror = (error) => {
+    terminalWindow.innerText += "[Error] WebSocket connection failed.\n";
+};
         
         const deployBtn = document.getElementById('deployBtn');
         const codeEditor = document.getElementById('codeEditor');
