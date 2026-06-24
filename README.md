@@ -14,7 +14,7 @@ graph TD
     ControlPlane[Go Control Plane]
     DB[(Neon Postgres DB)]
     
-    subgraph Execution Sandbox
+    subgraph Sandbox ["Execution Sandbox"]
         JS[Goja JS VM]
         Wasm[Wasmtime Python VM]
     end
@@ -29,9 +29,11 @@ graph TD
     
     Client -->|4. HTTP Request| Proxy
     Proxy -->|5. Lookup & Fetch Code| DB
-    Proxy -->|6. Run Code| Execution Sandbox
+    Proxy -->|6. Run Code| JS
+    Proxy -->|6. Run Code| Wasm
     
-    Execution Sandbox -->|7. Console Stream| WS
+    JS -->|7. Console Stream| WS
+    Wasm -->|7. Console Stream| WS
     WS -->|8. Live Logs| Logs
     Logs -->|9. Render| Client
 ```
@@ -42,3 +44,22 @@ graph TD
 2. **Trigger**: When an HTTP request hits the public URL, the router extracts the UUID and fetches the corresponding code snippet from Postgres.
 3. **Execute**: The control plane initializes a lightweight, memory-isolated runtime context (`goja` for JS, `wasmtime` for Python) and executes the code.
 4. **Stream**: The sandbox intercepts console output streams (stdout/stderr) and broadcasts them in real time back to the frontend terminal via WebSockets.
+
+---
+
+## 🚧 Work in Progress (Roadmap)
+
+The following core components are currently in progress or planned for development:
+
+* **Database & Schema**:
+  * [ ] Populate `db/schema.sql` with table definitions (`functions`, `execution_logs`).
+  * [ ] Set up persistent database migration scripts.
+* **Execution Sandbox**:
+  * [ ] Integrate the WebAssembly/Python execution flow into the main Control Plane router (currently JS-only).
+  * [ ] Implement sandbox resource constraints (CPU/Memory limits) and API guardrails to block host-system access.
+* **Frontend Dashboard**:
+  * [ ] Refactor the current single-page vanilla HTML/CSS/JS frontend into a robust React application (Vite-scaffolded).
+  * [ ] Integrate `@monaco-editor/react` to replace the standard HTML textarea.
+* **Infrastructure**:
+  * [ ] Write `Dockerfile` and configure Render deploy pipeline for zero-downtime scaling.
+
