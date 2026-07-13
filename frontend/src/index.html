@@ -73,7 +73,7 @@
 
     <div class="workspace">
         <div class="editor-pane">
-            <div class="editor-header">index.js</div>
+            <div class="editor-header" id="editorHeader">index.js</div>
             <textarea id="codeEditor" spellcheck="false">// Write your serverless function here...
 function handler(event) {
     console.log("Hello from Mini-Lambda!");
@@ -82,6 +82,13 @@ function handler(event) {
         </div>
 
         <div class="sidebar">
+            <div class="url-box">
+                <label>Language:</label>
+                <select id="languageSelect" style="padding: 10px; background: #1e1e1e; border: 1px solid #555; color: var(--text-main); border-radius: 4px; font-family: sans-serif; font-size: 1rem; width: 100%;">
+                    <option value="javascript">JavaScript (Goja)</option>
+                    <option value="python">Python 3 (Local / Wasm)</option>
+                </select>
+            </div>
             <button id="deployBtn">🚀 Deploy Function</button>
             <div class="url-box">
                 <label>Public URL (Trigger endpoint):</label>
@@ -97,29 +104,52 @@ function handler(event) {
 
     <script>
         // Connect to the Go API Gateway WebSocket
-const socket = new WebSocket('ws://localhost:8080/api/ws');
+        const socket = new WebSocket('ws://localhost:8080/api/ws');
 
-const terminalWindow = document.getElementById('terminalOutput'); // Ensure this matches your terminal div's ID
+        const terminalWindow = document.getElementById('terminalOutput'); // Ensure this matches your terminal div's ID
 
-socket.onopen = () => {
-    terminalWindow.innerText += "[System] Connected to Control Plane WebSockets...\n";
-};
+        socket.onopen = () => {
+            terminalWindow.innerText += "[System] Connected to Control Plane WebSockets...\n";
+        };
 
-// Whenever the Go server broadcasts a log line, append it to the terminal!
-socket.onmessage = (event) => {
-    terminalWindow.innerText += event.data + "\n";
-    // Auto-scroll to the bottom of the terminal
-    terminalWindow.scrollTop = terminalWindow.scrollHeight; 
-};
+        // Whenever the Go server broadcasts a log line, append it to the terminal!
+        socket.onmessage = (event) => {
+            terminalWindow.innerText += event.data + "\n";
+            // Auto-scroll to the bottom of the terminal
+            terminalWindow.scrollTop = terminalWindow.scrollHeight; 
+        };
 
-socket.onerror = (error) => {
-    terminalWindow.innerText += "[Error] WebSocket connection failed.\n";
-};
+        socket.onerror = (error) => {
+            terminalWindow.innerText += "[Error] WebSocket connection failed.\n";
+        };
         
         const deployBtn = document.getElementById('deployBtn');
         const codeEditor = document.getElementById('codeEditor');
         const publicUrlField = document.getElementById('publicUrl');
         const terminal = document.getElementById('terminalOutput');
+        const languageSelect = document.getElementById('languageSelect');
+        const editorHeader = document.getElementById('editorHeader');
+
+        const templates = {
+            javascript: `// Write your serverless function here...
+function handler(event) {
+    console.log("Hello from Mini-Lambda!");
+    return { status: 200, message: "Success" };
+}`,
+            python: `# Write your serverless function here...
+print("Hello from Python Mini-Lambda!")
+`
+        };
+
+        languageSelect.addEventListener('change', () => {
+            const lang = languageSelect.value;
+            if (lang === 'javascript') {
+                editorHeader.innerText = 'index.js';
+            } else {
+                editorHeader.innerText = 'main.py';
+            }
+            codeEditor.value = templates[lang];
+        });
 
         function logToTerminal(message) {
             const time = new Date().toLocaleTimeString();
@@ -137,10 +167,10 @@ socket.onerror = (error) => {
                 const response = await fetch('http://localhost:8080/api/deploy', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    // Using the dummy user we inserted into Neon Postgres
                     body: JSON.stringify({
                         user_id: "123e4567-e89b-12d3-a456-426614174000", 
-                        code_content: codeEditor.value
+                        code_content: codeEditor.value,
+                        language: languageSelect.value
                     })
                 });
 

@@ -11,6 +11,7 @@ import (
 // ExecuteJS now accepts a streamLog callback to prevent Go import cycles!
 func ExecuteJS(code string, streamLog func(string)) string {
     vm := goja.New()
+    vm.SetMaxCallStackSize(250) // Restrict stack depth to prevent stack overflow OOM
     var outputBuilder strings.Builder
 
     // Override console.log to capture stdout

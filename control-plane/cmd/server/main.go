@@ -17,6 +17,7 @@ import (
 type DeployRequest struct {
 	UserID      string `json:"user_id"`
 	CodeContent string `json:"code_content"`
+	Language    string `json:"language"`
 }
 
 type DeployResponse struct {
@@ -28,7 +29,7 @@ type DeployResponse struct {
 func deployHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Set standard CORS headers
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type") // avoids corrs error
 
 	// 2. Catch the invisible browser Preflight request
 	if r.Method == http.MethodOptions {
@@ -49,13 +50,18 @@ func deployHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	lang := req.Language
+	if lang == "" {
+		lang = "javascript"
+	}
+
 	functionID := uuid.New().String()
 	publicURL := fmt.Sprintf("/user/code/%s", functionID)
 
-	query := `INSERT INTO functions (id, user_id, code_content, public_url, created_at) 
-              VALUES ($1, $2, $3, $4, $5)`
+	query := `INSERT INTO functions (id, user_id, code_content, language, public_url, created_at) 
+              VALUES ($1, $2, $3, $4, $5, $6)`
 
-	_, err := db.DB.Exec(query, functionID, req.UserID, req.CodeContent, publicURL, time.Now())
+	_, err := db.DB.Exec(query, functionID, req.UserID, req.CodeContent, lang, publicURL, time.Now())
 	if err != nil {
 		log.Printf("Failed to insert function: %v", err)
 		http.Error(w, "Database error", http.StatusInternalServerError)
@@ -75,7 +81,7 @@ func deployHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	godotenv.Load()
-	db.InitDB()
+	db.InitDB() // inital the neon db
 
 	http.HandleFunc("/api/deploy", deployHandler)
 	http.HandleFunc("/user/code/", router.ExecuteHandler)
@@ -88,4 +94,4 @@ func main() {
 	}
 }
 
-// api gateway -> fraud detection -> serverless -> message
+

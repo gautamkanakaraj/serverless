@@ -3,12 +3,15 @@ package router
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"serverless/control-plane/internal/db"
 	"serverless/sandbox/engine"
+
+	"github.com/google/uuid"
 )
 
 func ExecuteHandler(w http.ResponseWriter, r *http.Request) {
@@ -20,11 +23,12 @@ func ExecuteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	functionID := pathParts[3]
 
-	// 2. Fetch the user's code from Neon Postgres
+	// 2. Fetch the user's code and language from Neon Postgres
 	var codeContent string
-	query := `SELECT code_content FROM functions WHERE id = $1`
+	var language string
+	query := `SELECT code_content, language FROM functions WHERE id = $1`
 
-	err := db.DB.QueryRow(query, functionID).Scan(&codeContent)
+	err := db.DB.QueryRow(query, functionID).Scan(&codeContent, &language)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Function not found", http.StatusNotFound)
@@ -34,12 +38,43 @@ func ExecuteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 3. Send code to the execution sandbox
-	output := engine.ExecuteJS(codeContent, BroadcastLog)
+	// 3. Send code to the execution sandbox and measure duration
+	startTime := time.Now()
+	var output string
 
-	// 4. Return the execution results to the browser
+	if strings.ToLower(language) == "python" {
+		output = engine.ExecutePython(codeContent, BroadcastLog)
+	} else {
+		output = engine.ExecuteJS(codeContent, BroadcastLog)
+	}
+
+	durationMs := int(time.Since(startTime).Milliseconds())
+
+	// 4. Determine status code and error messages
+	statusCode := http.StatusOK
+	var errMsg sql.NullString
+
+	if strings.HasPrefix(output, "Execution Timeout") {
+		statusCode = http.StatusInternalServerError
+		errMsg = sql.NullString{String: "Execution Timeout", Valid: true}
+	} else if strings.HasPrefix(output, "Runtime Error:") || strings.HasPrefix(output, "Execution Error:") {
+		statusCode = http.StatusInternalServerError
+		errMsg = sql.NullString{String: output, Valid: true}
+	}
+
+	// 5. Write execution log to the database
+	logID := uuid.New().String()
+	logQuery := `INSERT INTO execution_logs (id, function_id, log_output, duration_ms, status_code, error_message, timestamp) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)`
+
+	_, dbErr := db.DB.Exec(logQuery, logID, functionID, output, durationMs, statusCode, errMsg, time.Now())
+	if dbErr != nil {
+		log.Printf("Failed to record execution log to DB: %v", dbErr)
+	}
+
+	// 6. Return the execution results to the browser
 	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(statusCode)
 	w.Write([]byte(output))
 }
 

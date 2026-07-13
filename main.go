@@ -32,6 +32,20 @@ func main() {
 	if err != nil {
 		log.Fatalf("Cannot reach the database: %v", err)
 	}
+	fmt.Println("🎉 Connected to Neon Postgres!")
 
-	fmt.Println("🎉 Success! Your Go application is talking to Neon Postgres.")
+	// 5. Read db/schema.sql to apply schema migrations
+	schemaPath := "db/schema.sql"
+	schemaBytes, err := os.ReadFile(schemaPath)
+	if err != nil {
+		log.Fatalf("Failed to read schema file: %v", err)
+	}
+
+	// 6. Execute SQL statements
+	_, err = db.Exec(string(schemaBytes))
+	if err != nil {
+		log.Fatalf("Failed to initialize database schema: %v", err)
+	}
+
+	fmt.Println("🚀 Database schema successfully initialized and verified!")
 }
