@@ -124,3 +124,6 @@ Triggers execution of the deployed function in the isolated sandbox.
 
 ### 3. `GET /api/ws`
 Establishes WebSocket connections to broadcast live console logs during execution.
+
+For static typed language the env is yet to be done
+
