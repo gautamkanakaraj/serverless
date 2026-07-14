@@ -46,6 +46,14 @@
             justify-content: center;
             align-items: center;
             background: radial-gradient(circle at 50% 50%, #1e1b4b 0%, var(--bg-deep) 70%);
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.4s ease, visibility 0.4s ease;
+        }
+        #loginWall.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
         }
 
         /* Animated Mesh Gradient Background */
@@ -169,13 +177,15 @@
             flex-direction: column;
             height: 100vh;
             opacity: 0;
+            visibility: hidden;
             pointer-events: none;
             transform: scale(0.99);
-            transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.5s ease;
         }
 
         #appContainer.active {
             opacity: 1;
+            visibility: visible;
             pointer-events: auto;
             transform: scale(1);
         }
@@ -653,6 +663,8 @@
                 Sign in with Google
             </a>
 
+            <div id="loginError" style="color: #ef4444; margin-top: 15px; text-align: center; display: none; font-size: 0.9rem; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.2);"></div>
+
             <div class="dev-notice">
                 <span>Local development is active. Sign in redirects to <code>mock-user@minilambda.com</code> if OAuth credentials are not set.</span>
             </div>
@@ -781,27 +793,36 @@
 
         // Verify Session on Load
         async function checkSession() {
+            const loginError = document.getElementById('loginError');
             try {
-                const response = await fetch('/api/auth/me');
+                const response = await fetch('/api/auth/me', { credentials: 'include', cache: 'no-store' });
                 if (response.ok) {
                     currentUser = await response.json();
                     setupDashboard(currentUser);
                 } else {
+                    const text = await response.text();
+                    // Don't show error if it's just a clean non-logged in state (401 with nothing)
+                    if (response.status !== 401 || text.trim() !== "Unauthorized") {
+                        loginError.innerText = `Session check failed: ${response.status} ${response.statusText} (${text})`;
+                        loginError.style.display = 'block';
+                    }
                     showLoginWall();
                 }
             } catch (error) {
                 console.error("Session check failed", error);
+                loginError.innerText = `Network/CORS error: ${error.message}`;
+                loginError.style.display = 'block';
                 showLoginWall();
             }
         }
 
         function showLoginWall() {
-            loginWall.style.display = 'flex';
             appContainer.classList.remove('active');
+            loginWall.classList.remove('hidden');
         }
 
         function setupDashboard(user) {
-            loginWall.style.display = 'none';
+            loginWall.classList.add('hidden');
             appContainer.classList.add('active');
             userEmailSpan.innerText = user.email;
             
@@ -866,6 +887,7 @@
             try {
                 const response = await fetch('/api/settings/db', {
                     method: 'POST',
+                    credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ connection_string: connStr })
                 });
@@ -939,7 +961,7 @@
         // Log out logic
         document.getElementById('logoutBtn').addEventListener('click', async () => {
             try {
-                await fetch('/api/auth/logout', { method: 'POST' });
+                await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
                 window.location.reload();
             } catch (err) {
                 console.error("Logout failed", err);
@@ -1001,6 +1023,7 @@ print("Hello from Python Mini-Lambda!")
             try {
                 const response = await fetch('/api/deploy', {
                     method: 'POST',
+                    credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         user_id: currentUser ? currentUser.user_id : "",
@@ -1034,8 +1057,19 @@ print("Hello from Python Mini-Lambda!")
             }
         });
 
-        // Check session on page load
-        checkSession();
+        // Check session on page load.
+        // If we came from auth (/?from_auth=1), the cookie is already set by the Go backend
+        // before this page even loaded. We just call checkSession() directly and clean
+        // up the URL with replaceState() so the ?from_auth param doesn't persist.
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('from_auth')) {
+                // Clean up the URL without triggering another page reload
+                window.history.replaceState({}, document.title, '/');
+            }
+            // Always check session — cookie is already present if auth succeeded
+            checkSession();
+        })();
     </script>
 </body>
 </html>

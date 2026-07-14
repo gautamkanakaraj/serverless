@@ -146,8 +146,14 @@ func main() {
 	// Settings routes
 	http.HandleFunc("/api/settings/db", router.AuthenticateMiddleware(router.SaveDBSettingsHandler))
 
-	// Serve the frontend static files
-	http.Handle("/", http.FileServer(http.Dir("frontend/src")))
+	// Serve the frontend static files with no-cache to prevent browser caching issues during dev
+	fs := http.FileServer(http.Dir("frontend/src"))
+	http.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		fs.ServeHTTP(w, r)
+	}))
 
 	port := ":8080"
 	fmt.Printf("Control Plane running on port %s...\n", port)

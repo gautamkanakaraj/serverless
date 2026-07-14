@@ -52,16 +52,14 @@ func isMockAuthEnabled() bool {
 
 func SetupCORS(w http.ResponseWriter, r *http.Request) bool {
 	origin := r.Header.Get("Origin")
-	if origin == "" {
-		// Fallback to localhost if no origin (or * if not using credentials, but we are)
-		origin = "http://localhost:8080"
+	if origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	}
-	w.Header().Set("Access-Control-Allow-Origin", origin)
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 
-	if r.Method == http.MethodOptions {
+	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return true
 	}
@@ -231,8 +229,29 @@ func CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	// Redirect to frontend dashboard
-	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	// Instead of a 302 redirect, serve a tiny HTML page that does a JS navigation.
+	// This ensures the browser fully commits the Set-Cookie header from THIS response
+	// before the next page's JS (checkSession) runs — eliminating the race condition
+	// where the browser hadn't yet stored the cookie before fetch('/api/auth/me') fired.
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `<!DOCTYPE html>
+<html>
+<head>
+  <title>Signing in...</title>
+  <style>
+    body { margin:0; background:#0b0c10; display:flex; align-items:center; justify-content:center; height:100vh; }
+    p { color:#a5b4fc; font-family:sans-serif; font-size:1.1rem; }
+  </style>
+</head>
+<body>
+  <p>⚡ Signing you in...</p>
+  <script>
+    // Cookie is now committed. Navigate to dashboard.
+    window.location.replace('/');
+  </script>
+</body>
+</html>`)
 }
 
 // MeHandler returns the authenticated user's profile info along with database status
@@ -243,6 +262,7 @@ func MeHandler(w http.ResponseWriter, r *http.Request) {
 
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
+		log.Printf("[Auth] MeHandler failed: missing session_token cookie: %v", err)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -252,6 +272,7 @@ func MeHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil || !token.Valid {
+		log.Printf("[Auth] MeHandler failed: invalid token: %v", err)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
