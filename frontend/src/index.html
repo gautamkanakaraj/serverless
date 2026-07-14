@@ -4,128 +4,663 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mini-Lambda Platform</title>
+    <!-- Premium Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
         :root {
-            --bg-dark: #1e1e1e;
-            --bg-panel: #2d2d2d;
-            --text-main: #d4d4d4;
-            --accent: #007acc;
-            --accent-hover: #005f9e;
-            --terminal-green: #4af626;
-        }
-        body, html {
-            margin: 0; padding: 0; height: 100vh;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-dark); color: var(--text-main);
-            display: flex; flex-direction: column;
-        }
-        /* Header */
-        header {
-            background-color: #333; padding: 15px 20px;
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid #444;
-        }
-        header h1 { margin: 0; font-size: 1.2rem; }
-        
-        /* Main Layout */
-        .workspace { display: flex; flex: 1; overflow: hidden; }
-        
-        /* Left Pane - Editor */
-        .editor-pane { flex: 7; display: flex; flex-direction: column; border-right: 1px solid #444; }
-        .editor-header { background: #252526; padding: 10px; font-size: 0.9rem; }
-        textarea {
-            flex: 1; background-color: var(--bg-dark); color: #9cdcfe;
-            font-family: 'Courier New', Courier, monospace; font-size: 1rem;
-            padding: 15px; border: none; resize: none; outline: none;
-        }
-        
-        /* Right Pane - Sidebar */
-        .sidebar { flex: 3; background-color: var(--bg-panel); padding: 20px; display: flex; flex-direction: column; gap: 20px; }
-        button {
-            background-color: var(--accent); color: white; border: none;
-            padding: 15px; font-size: 1rem; font-weight: bold; cursor: pointer; border-radius: 4px;
-        }
-        button:hover { background-color: var(--accent-hover); }
-        .url-box { display: flex; flex-direction: column; gap: 8px; }
-        .url-box input {
-            padding: 10px; background: #1e1e1e; border: 1px solid #555;
-            color: var(--text-main); border-radius: 4px; font-family: monospace;
+            --bg-deep: #0b0c10;
+            --bg-panel: #161822;
+            --bg-card: rgba(30, 32, 45, 0.7);
+            --accent: #6366f1; /* Premium Indigo */
+            --accent-hover: #4f46e5;
+            --accent-glow: rgba(99, 102, 241, 0.15);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --border-light: rgba(255, 255, 255, 0.08);
+            --terminal-green: #34d399; /* Emerald */
+            --terminal-bg: #07080b;
         }
 
-        /* Bottom Pane - Logs */
-        .bottom-pane {
-            height: 30%; background-color: #000; border-top: 1px solid #444;
-            display: flex; flex-direction: column;
+        * {
+            box-sizing: border-box;
+            transition: background-color 0.2s, border-color 0.2s, transform 0.1s, box-shadow 0.2s;
         }
-        .log-header { background: #252526; padding: 5px 15px; font-size: 0.85rem; border-bottom: 1px solid #333; }
+
+        body, html {
+            margin: 0; padding: 0; height: 100vh;
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-deep); color: var(--text-main);
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- LOGIN WALL SCREEN --- */
+        #loginWall {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle at 50% 50%, #1e1b4b 0%, var(--bg-deep) 70%);
+        }
+
+        /* Animated Mesh Gradient Background */
+        .gradient-bg {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            overflow: hidden;
+            z-index: -1;
+        }
+        .gradient-sphere {
+            position: absolute;
+            width: 600px; height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0) 70%);
+            filter: blur(80px);
+            animation: float 20s infinite alternate ease-in-out;
+        }
+        .sphere-1 { top: -10%; left: -10%; }
+        .sphere-2 { bottom: -10%; right: -10%; animation-delay: -5s; }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(100px, 50px) scale(1.2); }
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 450px;
+            padding: 40px;
+            border-radius: 24px;
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-light);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+            text-align: center;
+            transform: translateY(0);
+            animation: cardEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes cardEntrance {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .logo-icon-large {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            display: inline-block;
+            filter: drop-shadow(0 0 15px var(--accent));
+        }
+
+        .login-card h2 {
+            font-size: 2.2rem;
+            margin: 0 0 10px 0;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #fff 30%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .login-card p {
+            color: var(--text-muted);
+            font-size: 1rem;
+            margin-bottom: 30px;
+            font-weight: 300;
+            line-height: 1.5;
+        }
+
+        .btn-google {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            padding: 16px;
+            border-radius: 14px;
+            border: 1px solid var(--border-light);
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-google:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+        }
+
+        .btn-google:active {
+            transform: translateY(0);
+        }
+
+        .google-icon {
+            width: 20px; height: 20px;
+        }
+
+        .dev-notice {
+            margin-top: 25px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 15px;
+        }
+        .dev-notice code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Fira Code', monospace;
+            color: #a5b4fc;
+        }
+
+        /* --- MAIN WORKSPACE APP --- */
+        #appContainer {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.99);
+            transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        #appContainer.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1);
+        }
+
+        /* Header styling */
+        header {
+            background-color: var(--bg-panel);
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-light);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-logo h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            background: linear-gradient(135deg, #fff 60%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-logo span {
+            font-size: 1.4rem;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .profile-badge {
+            background: linear-gradient(135deg, var(--accent) 0%, #a5b4fc 100%);
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: #fff;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+        }
+
+        .user-email {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .btn-logout {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border-light);
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        /* Workspace Panels */
+        .workspace {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Left side: Editor */
+        .editor-pane {
+            flex: 7;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-light);
+            background: #0f1015;
+        }
+
+        .editor-header {
+            background: #12131a;
+            padding: 10px 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .editor-tab-indicator {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background-color: var(--accent);
+            box-shadow: 0 0 8px var(--accent);
+        }
+
+        textarea {
+            flex: 1;
+            background-color: transparent;
+            color: #e0e7ff;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 0.98rem;
+            line-height: 1.6;
+            padding: 24px;
+            border: none;
+            resize: none;
+            outline: none;
+            tab-size: 4;
+        }
+
+        /* Right side: Controls & Sidebar */
+        .sidebar {
+            flex: 3;
+            background-color: var(--bg-panel);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            border-left: 1px solid var(--border-light);
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sidebar-section label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        select, .sidebar-section input {
+            padding: 12px 16px;
+            background: var(--bg-deep);
+            border: 1px solid var(--border-light);
+            color: var(--text-main);
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            width: 100%;
+            outline: none;
+        }
+
+        select:focus, .sidebar-section input:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        button.btn-deploy {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 16px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        button.btn-deploy:hover {
+            background-color: var(--accent-hover);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
+            transform: translateY(-1px);
+        }
+
+        button.btn-deploy:active {
+            transform: translateY(1px);
+        }
+
+        button.btn-deploy:disabled {
+            background-color: rgba(99, 102, 241, 0.4);
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .url-box {
+            position: relative;
+        }
+
+        .url-box input {
+            padding-right: 45px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            background-color: var(--terminal-bg);
+            color: var(--accent);
+            border-color: rgba(99, 102, 241, 0.2);
+        }
+
+        .btn-copy {
+            position: absolute;
+            right: 8px; top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-copy:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+        }
+
+        /* Bottom logs pane */
+        .bottom-pane {
+            height: 30%;
+            background-color: var(--terminal-bg);
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .log-header {
+            background: #0b0c10;
+            padding: 10px 24px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background-color: var(--terminal-green);
+            box-shadow: 0 0 8px var(--terminal-green);
+            margin-right: 6px;
+        }
+
         .terminal {
-            flex: 1; padding: 15px; font-family: 'Courier New', Courier, monospace;
-            color: var(--terminal-green); overflow-y: auto; font-size: 0.9rem; white-space: pre-wrap;
+            flex: 1;
+            padding: 20px 24px;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            color: var(--terminal-green);
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        /* Custom Scrollbar for premium look */
+        ::-webkit-scrollbar {
+            width: 8px; height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
         }
     </style>
 </head>
 <body>
 
-    <header>
-        <h1>Mini-Lambda Platform</h1>
-        <span>User: test@minilambda.com</span>
-    </header>
-
-    <div class="workspace">
-        <div class="editor-pane">
-            <div class="editor-header" id="editorHeader">index.js</div>
-            <textarea id="codeEditor" spellcheck="false">// Write your serverless function here...
-function handler(event) {
-    console.log("Hello from Mini-Lambda!");
-    return { status: 200, message: "Success" };
-}</textarea>
+    <!-- STUNNING LOGIN WALL -->
+    <div id="loginWall">
+        <div class="gradient-bg">
+            <div class="gradient-sphere sphere-1"></div>
+            <div class="gradient-sphere sphere-2"></div>
         </div>
+        <div class="login-card">
+            <span class="logo-icon-large">⚡</span>
+            <h2>Mini-Lambda</h2>
+            <p>Deploy code to dynamic API endpoints instantly. Powered by Neon DB and Goja Isolation Sandboxes.</p>
+            
+            <a href="/api/auth/login" class="btn-google">
+                <!-- SVG Google Icon -->
+                <svg class="google-icon" viewBox="0 0 24 24">
+                    <path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114-3.34 0-6.05-2.71-6.05-6.05s2.71-6.05 6.05-6.05c1.47 0 2.818.528 3.864 1.408l3.078-3.078C18.892 2.65 15.823 1.5 12.24 1.5 6.136 1.5 1.5 6.136 1.5 12.24s4.636 10.74 10.74 10.74c6.012 0 10.457-4.143 10.457-10.457 0-.583-.056-1.166-.168-1.738H12.24z"/>
+                </svg>
+                Sign in with Google
+            </a>
 
-        <div class="sidebar">
-            <div class="url-box">
-                <label>Language:</label>
-                <select id="languageSelect" style="padding: 10px; background: #1e1e1e; border: 1px solid #555; color: var(--text-main); border-radius: 4px; font-family: sans-serif; font-size: 1rem; width: 100%;">
-                    <option value="javascript">JavaScript (Goja)</option>
-                    <option value="python">Python 3 (Local / Wasm)</option>
-                </select>
-            </div>
-            <button id="deployBtn">🚀 Deploy Function</button>
-            <div class="url-box">
-                <label>Public URL (Trigger endpoint):</label>
-                <input type="text" id="publicUrl" readonly placeholder="Waiting for deployment...">
+            <div class="dev-notice">
+                <span>Local development is active. Sign in redirects to <code>mock-user@minilambda.com</code> if OAuth credentials are not set.</span>
             </div>
         </div>
     </div>
 
-    <div class="bottom-pane">
-        <div class="log-header">Execution Logs</div>
-        <div class="terminal" id="terminalOutput">System ready. Waiting for deployment...</div>
+    <!-- MAIN APP CONTAINER -->
+    <div id="appContainer">
+        <header>
+            <div class="header-logo">
+                <span>⚡</span>
+                <h1>Mini-Lambda</h1>
+            </div>
+            <div class="user-profile">
+                <div class="profile-badge" id="userBadge">?</div>
+                <span class="user-email" id="userEmailSpan">loading...</span>
+                <button class="btn-logout" id="logoutBtn">
+                    <!-- Logout icon -->
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    Log Out
+                </button>
+            </div>
+        </header>
+
+        <div class="workspace">
+            <div class="editor-pane">
+                <div class="editor-header">
+                    <div class="editor-tab-indicator"></div>
+                    <span id="editorHeader">index.js</span>
+                </div>
+                <textarea id="codeEditor" spellcheck="false" placeholder="Write code here..."></textarea>
+            </div>
+
+            <div class="sidebar">
+                <div class="sidebar-section">
+                    <label>Language Runtime</label>
+                    <select id="languageSelect">
+                        <option value="javascript">JavaScript (Goja Sandbox)</option>
+                        <option value="python">Python 3 (Local Sandbox)</option>
+                    </select>
+                </div>
+                
+                <button class="btn-deploy" id="deployBtn">
+                    <span>🚀</span> Deploy Function
+                </button>
+
+                <div class="sidebar-section">
+                    <label>Public Trigger Endpoint</label>
+                    <div class="url-box">
+                        <input type="text" id="publicUrl" readonly placeholder="Deploy code to generate URL">
+                        <button class="btn-copy" id="copyUrlBtn" title="Copy to clipboard">
+                            <!-- Copy icon -->
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-pane">
+            <div class="log-header">
+                <div>Execution logs</div>
+                <div><span class="status-dot"></span>Active connection</div>
+            </div>
+            <div class="terminal" id="terminalOutput">System ready. Waiting for deployment...</div>
+        </div>
     </div>
 
     <script>
-        // Connect to the Go API Gateway WebSocket
-        const socket = new WebSocket('ws://localhost:8080/api/ws');
-
-        const terminalWindow = document.getElementById('terminalOutput'); // Ensure this matches your terminal div's ID
-
-        socket.onopen = () => {
-            terminalWindow.innerText += "[System] Connected to Control Plane WebSockets...\n";
-        };
-
-        // Whenever the Go server broadcasts a log line, append it to the terminal!
-        socket.onmessage = (event) => {
-            terminalWindow.innerText += event.data + "\n";
-            // Auto-scroll to the bottom of the terminal
-            terminalWindow.scrollTop = terminalWindow.scrollHeight; 
-        };
-
-        socket.onerror = (error) => {
-            terminalWindow.innerText += "[Error] WebSocket connection failed.\n";
-        };
+        const loginWall = document.getElementById('loginWall');
+        const appContainer = document.getElementById('appContainer');
+        const userEmailSpan = document.getElementById('userEmailSpan');
+        const userBadge = document.getElementById('userBadge');
         
+        let currentUser = null;
+
+        // Verify Session on Load
+        async function checkSession() {
+            try {
+                const response = await fetch('/api/auth/me');
+                if (response.ok) {
+                    currentUser = await response.json();
+                    setupDashboard(currentUser);
+                } else {
+                    showLoginWall();
+                }
+            } catch (error) {
+                console.error("Session check failed", error);
+                showLoginWall();
+            }
+        }
+
+        function showLoginWall() {
+            loginWall.style.display = 'flex';
+            appContainer.classList.remove('active');
+        }
+
+        function setupDashboard(user) {
+            loginWall.style.display = 'none';
+            appContainer.classList.add('active');
+            userEmailSpan.innerText = user.email;
+            
+            // Set first letter as badge
+            if (user.email) {
+                userBadge.innerText = user.email.charAt(0).toUpperCase();
+            }
+
+            // Initialize WebSocket after login
+            initWebSocket();
+        }
+
+        // WebSockets connection using dynamic host
+        let socket;
+        function initWebSocket() {
+            const socketProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            socket = new WebSocket(`${socketProto}//${window.location.host}/api/ws`);
+
+            const terminalWindow = document.getElementById('terminalOutput');
+
+            socket.onopen = () => {
+                terminalWindow.innerHTML = "[System] Connected to live log WebSockets...\n";
+            };
+
+            socket.onmessage = (event) => {
+                terminalWindow.innerHTML += event.data + "\n";
+                terminalWindow.scrollTop = terminalWindow.scrollHeight;
+            };
+
+            socket.onerror = (error) => {
+                terminalWindow.innerHTML += "[System Error] WebSocket connection failed.\n";
+            };
+
+            socket.onclose = () => {
+                console.log("WebSocket connection closed. Reconnecting in 5s...");
+                setTimeout(initWebSocket, 5000);
+            };
+        }
+
+        // Log out logic
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.reload();
+            } catch (err) {
+                console.error("Logout failed", err);
+            }
+        });
+
+        // Copy URL to clipboard
+        const publicUrlField = document.getElementById('publicUrl');
+        document.getElementById('copyUrlBtn').addEventListener('click', () => {
+            if (publicUrlField.value) {
+                navigator.clipboard.writeText(publicUrlField.value);
+                // Simple tooltip response
+                logToTerminal("Trigger URL copied to clipboard.");
+            }
+        });
+
         const deployBtn = document.getElementById('deployBtn');
         const codeEditor = document.getElementById('codeEditor');
-        const publicUrlField = document.getElementById('publicUrl');
         const terminal = document.getElementById('terminalOutput');
         const languageSelect = document.getElementById('languageSelect');
         const editorHeader = document.getElementById('editorHeader');
@@ -133,13 +668,16 @@ function handler(event) {
         const templates = {
             javascript: `// Write your serverless function here...
 function handler(event) {
-    console.log("Hello from Mini-Lambda!");
+    console.log("Hello from Mini-Lambda JavaScript!");
     return { status: 200, message: "Success" };
 }`,
             python: `# Write your serverless function here...
 print("Hello from Python Mini-Lambda!")
 `
         };
+
+        // Initialize editor value
+        codeEditor.value = templates.javascript;
 
         languageSelect.addEventListener('change', () => {
             const lang = languageSelect.value;
@@ -154,45 +692,53 @@ print("Hello from Python Mini-Lambda!")
         function logToTerminal(message) {
             const time = new Date().toLocaleTimeString();
             terminal.innerHTML += `\n[${time}] ${message}`;
-            terminal.scrollTop = terminal.scrollHeight; // Auto-scroll
+            terminal.scrollTop = terminal.scrollHeight;
         }
 
+        // Deploy logic
         deployBtn.addEventListener('click', async () => {
             logToTerminal("Initiating deployment to Control Plane...");
             deployBtn.disabled = true;
             deployBtn.innerText = "Deploying...";
 
             try {
-                // Hitting the Go API Gateway we built
-                const response = await fetch('http://localhost:8080/api/deploy', {
+                const response = await fetch('/api/deploy', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        user_id: "123e4567-e89b-12d3-a456-426614174000", 
+                        user_id: currentUser ? currentUser.user_id : "",
                         code_content: codeEditor.value,
                         language: languageSelect.value
                     })
                 });
 
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        logToTerminal("Session expired. Please log in again.");
+                        showLoginWall();
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
                 
                 const data = await response.json();
+                logToTerminal("Deployment successful! Function successfully stored.");
                 
-                logToTerminal("Deployment successful! Saved to Neon Postgres.");
-                
-                // Construct the full trigger URL
-                const fullUrl = `http://localhost:8080${data.public_url}`;
+                const fullUrl = `${window.location.protocol}//${window.location.host}${data.public_url}`;
                 publicUrlField.value = fullUrl;
                 logToTerminal(`Function is now live at: ${fullUrl}`);
-                logToTerminal(`Copy and paste the URL into your browser to trigger execution.`);
+                logToTerminal(`Trigger execution by visiting the endpoint.`);
 
             } catch (error) {
                 logToTerminal(`ERROR: Failed to deploy. Is your Go server running? (${error.message})`);
             } finally {
                 deployBtn.disabled = false;
-                deployBtn.innerText = "🚀 Deploy Function";
+                deployBtn.innerHTML = `<span>🚀</span> Deploy Function`;
             }
         });
+
+        // Check session on page load
+        checkSession();
     </script>
 </body>
 </html>

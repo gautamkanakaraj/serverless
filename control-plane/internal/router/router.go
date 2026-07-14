@@ -23,19 +23,31 @@ func ExecuteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	functionID := pathParts[3]
 
-	// 2. Fetch the user's code and language from Neon Postgres
+	// 2. Fetch the user's code and language from Neon Postgres or Mock Store
 	var codeContent string
 	var language string
-	query := `SELECT code_content, language FROM functions WHERE id = $1`
 
-	err := db.DB.QueryRow(query, functionID).Scan(&codeContent, &language)
-	if err != nil {
-		if err == sql.ErrNoRows {
+	if db.MockMode {
+		db.MockMu.RLock()
+		rec, exists := db.MockFunctions[functionID]
+		db.MockMu.RUnlock()
+		if !exists {
 			http.Error(w, "Function not found", http.StatusNotFound)
-		} else {
-			http.Error(w, "Database error", http.StatusInternalServerError)
+			return
 		}
-		return
+		codeContent = rec.CodeContent
+		language = rec.Language
+	} else {
+		query := `SELECT code_content, language FROM functions WHERE id = $1`
+		err := db.DB.QueryRow(query, functionID).Scan(&codeContent, &language)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				http.Error(w, "Function not found", http.StatusNotFound)
+			} else {
+				http.Error(w, "Database error", http.StatusInternalServerError)
+			}
+			return
+		}
 	}
 
 	// 3. Send code to the execution sandbox and measure duration
@@ -62,14 +74,32 @@ func ExecuteHandler(w http.ResponseWriter, r *http.Request) {
 		errMsg = sql.NullString{String: output, Valid: true}
 	}
 
-	// 5. Write execution log to the database
+	// 5. Write execution log to the database or Mock Store
 	logID := uuid.New().String()
-	logQuery := `INSERT INTO execution_logs (id, function_id, log_output, duration_ms, status_code, error_message, timestamp) 
-                 VALUES ($1, $2, $3, $4, $5, $6, $7)`
-
-	_, dbErr := db.DB.Exec(logQuery, logID, functionID, output, durationMs, statusCode, errMsg, time.Now())
-	if dbErr != nil {
-		log.Printf("Failed to record execution log to DB: %v", dbErr)
+	if db.MockMode {
+		db.MockMu.Lock()
+		errMsgStr := ""
+		if errMsg.Valid {
+			errMsgStr = errMsg.String
+		}
+		db.MockLogs[functionID] = append(db.MockLogs[functionID], db.MockLogRecord{
+			ID:           logID,
+			FunctionID:   functionID,
+			LogOutput:    output,
+			DurationMs:   durationMs,
+			StatusCode:   statusCode,
+			ErrorMessage: errMsgStr,
+			Timestamp:    time.Now(),
+		})
+		db.MockMu.Unlock()
+		log.Printf("[Mock DB] Recorded execution log for %s (Status: %d, Time: %dms)", functionID, statusCode, durationMs)
+	} else {
+		logQuery := `INSERT INTO execution_logs (id, function_id, log_output, duration_ms, status_code, error_message, timestamp) 
+	                 VALUES ($1, $2, $3, $4, $5, $6, $7)`
+		_, dbErr := db.DB.Exec(logQuery, logID, functionID, output, durationMs, statusCode, errMsg, time.Now())
+		if dbErr != nil {
+			log.Printf("Failed to record execution log to DB: %v", dbErr)
+		}
 	}
 
 	// 6. Return the execution results to the browser

@@ -1,8 +1,14 @@
 -- Create the users table
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email TEXT UNIQUE NOT NULL
+    email TEXT UNIQUE NOT NULL,
+    google_id VARCHAR(255) UNIQUE,
+    dedicated_db_conn_str TEXT
 );
+
+-- Ensure columns exist if table was already created
+ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS dedicated_db_conn_str TEXT;
 
 -- Create the functions table
 CREATE TABLE IF NOT EXISTS functions (
