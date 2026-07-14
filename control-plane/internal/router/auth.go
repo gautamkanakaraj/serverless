@@ -219,13 +219,17 @@ func CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set HTTP-only Cookie
+	// Set HTTP-only Cookie.
+	// Secure=true is required in production (HTTPS). In local dev (HTTP) it must be false
+	// or the browser will silently drop the cookie.
+	isProduction := os.Getenv("APP_ENV") == "production"
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    tokenString,
 		Expires:  time.Now().Add(24 * time.Hour),
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   isProduction,
 		SameSite: http.SameSiteLaxMode,
 	})
 
