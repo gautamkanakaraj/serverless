@@ -1,3 +1,6 @@
+-- Enable pgcrypto extension for older PostgreSQL compatibility
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 -- Create the users table
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -37,7 +40,3 @@ CREATE TABLE IF NOT EXISTS execution_logs (
 -- Index foreign keys for faster queries
 CREATE INDEX IF NOT EXISTS idx_execution_logs_function_id ON execution_logs(function_id);
 
--- Insert dummy user so we can test deployments immediately
-INSERT INTO users (id, email) 
-VALUES ('123e4567-e89b-12d3-a456-426614174000', 'test@minilambda.com')
-ON CONFLICT (id) DO NOTHING;

@@ -59,9 +59,30 @@ func deployHandler(w http.ResponseWriter, r *http.Request) {
 		userID = req.UserID
 	}
 
+	// Retrieve dedicated user database pool
+	userDB, err := db.GetUserDB(userID)
+	if err != nil {
+		log.Printf("Failed to retrieve user database pool: %v", err)
+		http.Error(w, "User database isolation pool unavailable", http.StatusInternalServerError)
+		return
+	}
+
 	if db.MockMode {
 		db.MockMu.Lock()
+		// Save metadata registry
 		db.MockFunctions[functionID] = db.MockFunctionRecord{
+			ID:          functionID,
+			UserID:      userID,
+			CodeContent: "REGISTRY_ONLY",
+			Language:    lang,
+			PublicURL:   publicURL,
+			CreatedAt:   time.Now(),
+		}
+		// Save to isolated database
+		if db.MockIsolatedFunctions[userID] == nil {
+			db.MockIsolatedFunctions[userID] = make(map[string]db.MockFunctionRecord)
+		}
+		db.MockIsolatedFunctions[userID][functionID] = db.MockFunctionRecord{
 			ID:          functionID,
 			UserID:      userID,
 			CodeContent: req.CodeContent,
@@ -70,16 +91,30 @@ func deployHandler(w http.ResponseWriter, r *http.Request) {
 			CreatedAt:   time.Now(),
 		}
 		db.MockMu.Unlock()
-		log.Printf("[Mock DB] Deployed function %s (Language: %s) for user %s", functionID, lang, userID)
+		log.Printf("[Mock DB] Deployed function %s to user isolated database for user %s", functionID, userID)
 	} else {
-		query := `INSERT INTO functions (id, user_id, code_content, language, public_url, created_at) 
-	              VALUES ($1, $2, $3, $4, $5, $6)`
-		_, err := db.DB.Exec(query, functionID, userID, req.CodeContent, lang, publicURL, time.Now())
+		// 1. Insert metadata registry into Master DB
+		masterQuery := `INSERT INTO functions (id, user_id, code_content, language, public_url, created_at) 
+		                VALUES ($1, $2, $3, $4, $5, $6)`
+		_, err = db.DB.Exec(masterQuery, functionID, userID, "REGISTRY_ONLY", lang, publicURL, time.Now())
 		if err != nil {
-			log.Printf("Failed to insert function: %v", err)
-			http.Error(w, "Database error", http.StatusInternalServerError)
+			log.Printf("Failed to insert function metadata in master DB: %v", err)
+			http.Error(w, "Failed to register function metadata", http.StatusInternalServerError)
 			return
 		}
+
+		// 2. Insert real function content into isolated User DB
+		userQuery := `INSERT INTO functions (id, user_id, code_content, language, public_url, created_at) 
+		              VALUES ($1, $2, $3, $4, $5, $6)`
+		_, err = userDB.Exec(userQuery, functionID, userID, req.CodeContent, lang, publicURL, time.Now())
+		if err != nil {
+			log.Printf("Failed to deploy function to user isolated DB: %v", err)
+			// Rollback master insertion to keep them in sync
+			db.DB.Exec("DELETE FROM functions WHERE id = $1", functionID)
+			http.Error(w, "Failed to write deployment payload to isolated database", http.StatusInternalServerError)
+			return
+		}
+		log.Printf("[DB] Function %s successfully written to user %s isolated database", functionID, userID)
 	}
 
 	res := DeployResponse{
@@ -107,6 +142,9 @@ func main() {
 	http.HandleFunc("/api/deploy", router.AuthenticateMiddleware(deployHandler))
 	http.HandleFunc("/user/code/", router.ExecuteHandler)
 	http.HandleFunc("/api/ws", router.WsHandler) // live terminal WebSocket endpoint
+
+	// Settings routes
+	http.HandleFunc("/api/settings/db", router.AuthenticateMiddleware(router.SaveDBSettingsHandler))
 
 	// Serve the frontend static files
 	http.Handle("/", http.FileServer(http.Dir("frontend/src")))

@@ -1,8 +1,13 @@
 package db
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"sync"
@@ -22,11 +27,12 @@ type MockUserRecord struct {
 }
 
 var (
-	MockMode      bool
-	MockFunctions = make(map[string]MockFunctionRecord)
-	MockLogs      = make(map[string][]MockLogRecord)
-	MockUsers     = make(map[string]MockUserRecord) // Key is either ID or GoogleID
-	MockMu        sync.RWMutex
+	MockMode              bool
+	MockFunctions         = make(map[string]MockFunctionRecord)
+	MockIsolatedFunctions = make(map[string]map[string]MockFunctionRecord) // Key is userID
+	MockLogs              = make(map[string][]MockLogRecord)
+	MockUsers             = make(map[string]MockUserRecord) // Key is either ID or GoogleID
+	MockMu                sync.RWMutex
 )
 
 type MockFunctionRecord struct {
@@ -84,12 +90,135 @@ func InitDB() {
 		fmt.Println("Successfully connected to Neon Postgres!")
 	}
 
-	if MockMode {
-		MockMu.Lock()
-		MockUsers["123e4567-e89b-12d3-a456-426614174000"] = MockUserRecord{
-			ID:    "123e4567-e89b-12d3-a456-426614174000",
-			Email: "test@minilambda.com",
-		}
-		MockMu.Unlock()
+}
+
+var (
+	UserDBPools = make(map[string]*sql.DB)
+	PoolsMu     sync.RWMutex
+)
+
+// GetUserDB retrieves the connection pool for a user's isolated database
+func GetUserDB(userID string) (*sql.DB, error) {
+	PoolsMu.RLock()
+	pool, exists := UserDBPools[userID]
+	PoolsMu.RUnlock()
+	if exists {
+		return pool, nil
 	}
+
+	PoolsMu.Lock()
+	defer PoolsMu.Unlock()
+
+	// Double-check pattern
+	pool, exists = UserDBPools[userID]
+	if exists {
+		return pool, nil
+	}
+
+	var connStr sql.NullString
+	if MockMode {
+		MockMu.RLock()
+		u, ok := MockUsers[userID]
+		MockMu.RUnlock()
+		if !ok || u.DedicatedDBConnStr == "" {
+			return nil, fmt.Errorf("user %s connection string not found in mock database", userID)
+		}
+		connStr = sql.NullString{String: u.DedicatedDBConnStr, Valid: true}
+	} else {
+		query := `SELECT dedicated_db_conn_str FROM users WHERE id = $1`
+		err := DB.QueryRow(query, userID).Scan(&connStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to look up connection string for user %s: %w", userID, err)
+		}
+	}
+
+	if !connStr.Valid || connStr.String == "" {
+		return nil, fmt.Errorf("user %s connection string is empty or invalid", userID)
+	}
+
+	if MockMode {
+		UserDBPools[userID] = DB
+		return DB, nil
+	}
+
+	// Decrypt the stored connection string using AES-GCM
+	plainConnStr, err := DecryptConnectionString(connStr.String)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt connection string for user %s: %w", userID, err)
+	}
+
+	// Open connection pool
+	userDB, err := sql.Open("postgres", plainConnStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database pool for user %s: %w", userID, err)
+	}
+
+	// Configure pool settings
+	userDB.SetMaxOpenConns(10)
+	userDB.SetMaxIdleConns(2)
+	userDB.SetConnMaxLifetime(5 * time.Minute)
+
+	UserDBPools[userID] = userDB
+	return userDB, nil
+}
+
+func getEncryptionKey() []byte {
+	key := os.Getenv("DB_ENCRYPTION_KEY")
+	if len(key) < 32 {
+		// Fallback for mock/local development (must be exactly 32 bytes)
+		return []byte("a-very-secure-32-byte-long-key-!")
+	}
+	return []byte(key[:32])
+}
+
+// EncryptConnectionString encrypts a plain-text database connection string using AES-GCM
+func EncryptConnectionString(plainText string) (string, error) {
+	block, err := aes.NewCipher(getEncryptionKey())
+	if err != nil {
+		return "", err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", err
+	}
+
+	cipherText := gcm.Seal(nonce, nonce, []byte(plainText), nil)
+	return hex.EncodeToString(cipherText), nil
+}
+
+// DecryptConnectionString decrypts an AES-GCM encrypted database connection string
+func DecryptConnectionString(cipherTextHex string) (string, error) {
+	cipherText, err := hex.DecodeString(cipherTextHex)
+	if err != nil {
+		return "", err
+	}
+
+	block, err := aes.NewCipher(getEncryptionKey())
+	if err != nil {
+		return "", err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonceSize := gcm.NonceSize()
+	if len(cipherText) < nonceSize {
+		return "", fmt.Errorf("ciphertext too short")
+	}
+
+	nonce, actualCipherText := cipherText[:nonceSize], cipherText[nonceSize:]
+	plainText, err := gcm.Open(nil, nonce, actualCipherText, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return string(plainText), nil
 }

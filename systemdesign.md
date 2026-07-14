@@ -119,7 +119,7 @@ graph TD
 * **Request Payload**:
   ```json
   {
-    "user_id": "123e4567-e89b-12d3-a456-426614174000",
+    "user_id": "<authenticated_user_uuid>",
     "code_content": "function handler(event) {\n    console.log(\"Hello from Mini-Lambda!\");\n    return { status: 200, message: \"Success\" };\n}"
   }
   ```

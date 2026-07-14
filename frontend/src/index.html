@@ -256,6 +256,165 @@
             color: #ef4444;
         }
 
+        /* Settings button style */
+        .btn-settings {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border-light);
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-right: 8px;
+        }
+        .btn-settings:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Warning Banner Styles */
+        .warning-banner {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #fde68a;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.95rem;
+            margin: 15px 20px 0 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(8px);
+        }
+        .warning-banner p {
+            margin: 0;
+            font-weight: 500;
+        }
+
+        /* Modal Overlay Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-card {
+            background: rgba(20, 20, 30, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+            animation: modalEntrance 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes modalEntrance {
+            0% { opacity: 0; transform: scale(0.95); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .modal-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 1.4rem;
+            color: #fff;
+        }
+        .modal-card p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+        .input-group label {
+            color: #a5b4fc;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .input-group input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            padding: 12px;
+            color: #fff;
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        .input-group input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.25);
+        }
+        .input-helper {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        .btn-cancel {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-light);
+            color: var(--text-main);
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-cancel:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .btn-save {
+            background: var(--accent);
+            border: none;
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(129, 140, 248, 0.4);
+        }
+        .btn-save:hover {
+            background: #6366f1;
+            transform: translateY(-1px);
+        }
+        .modal-status {
+            margin-top: 15px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-align: center;
+        }
+        .modal-status.error {
+            color: #f87171;
+        }
+        .modal-status.success {
+            color: #4ade80;
+        }
+
         /* Workspace Panels */
         .workspace {
             display: flex;
@@ -510,6 +669,14 @@
             <div class="user-profile">
                 <div class="profile-badge" id="userBadge">?</div>
                 <span class="user-email" id="userEmailSpan">loading...</span>
+                <button class="btn-settings" id="settingsBtn">
+                    <!-- Settings icon -->
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                    Settings
+                </button>
                 <button class="btn-logout" id="logoutBtn">
                     <!-- Logout icon -->
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -521,6 +688,12 @@
                 </button>
             </div>
         </header>
+
+        <!-- DATABASE WARNING BANNER -->
+        <div id="dbWarningBanner" class="warning-banner" style="display: none;">
+            <span>⚠️</span>
+            <p>No database connected. Please click <strong id="bannerSettingsLink" style="text-decoration: underline; cursor: pointer;">Settings</strong> to configure your personal Neon connection string before deploying functions.</p>
+        </div>
 
         <div class="workspace">
             <div class="editor-pane">
@@ -569,11 +742,40 @@
         </div>
     </div>
 
+    <!-- DATABASE SETTINGS MODAL -->
+    <div id="settingsModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <h3>⚙️ Database Connection Settings</h3>
+            <p>Connect your personal Neon PostgreSQL database connection string. We will automatically bootstrap the necessary schemas and tables.</p>
+            <div class="input-group">
+                <label for="dbConnInput">Neon Connection String</label>
+                <input type="text" id="dbConnInput" placeholder="postgres://user:password@host/neondb?sslmode=require">
+                <span class="input-helper">Example: postgresql://gautam:your_password@ep-cool-butterfly.ap-southeast-1.aws.neon.tech/neondb?sslmode=require</span>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="closeSettingsBtn">Cancel</button>
+                <button class="btn-save" id="saveSettingsBtn">Save & Connect</button>
+            </div>
+            <div id="modalStatus" class="modal-status"></div>
+        </div>
+    </div>
+
     <script>
         const loginWall = document.getElementById('loginWall');
         const appContainer = document.getElementById('appContainer');
         const userEmailSpan = document.getElementById('userEmailSpan');
         const userBadge = document.getElementById('userBadge');
+
+        // Settings Elements
+        const dbWarningBanner = document.getElementById('dbWarningBanner');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        const dbConnInput = document.getElementById('dbConnInput');
+        const modalStatus = document.getElementById('modalStatus');
+        const bannerSettingsLink = document.getElementById('bannerSettingsLink');
+        const deployBtn = document.getElementById('deployBtn');
         
         let currentUser = null;
 
@@ -608,8 +810,103 @@
                 userBadge.innerText = user.email.charAt(0).toUpperCase();
             }
 
+            // Verify if a database connection is active
+            updateDatabaseUIStatus(user.has_db);
+
             // Initialize WebSocket after login
             initWebSocket();
+        }
+
+        function updateDatabaseUIStatus(hasDB) {
+            if (hasDB) {
+                dbWarningBanner.style.display = 'none';
+                deployBtn.disabled = false;
+                deployBtn.title = "Deploy your function snippet";
+            } else {
+                dbWarningBanner.style.display = 'flex';
+                deployBtn.disabled = true;
+                deployBtn.title = "Please connect your database in settings first";
+            }
+        }
+
+        // Toggle Settings Modal
+        settingsBtn.addEventListener('click', () => {
+            modalStatus.innerText = '';
+            modalStatus.className = 'modal-status';
+            settingsModal.style.display = 'flex';
+        });
+
+        bannerSettingsLink.addEventListener('click', () => {
+            modalStatus.innerText = '';
+            modalStatus.className = 'modal-status';
+            settingsModal.style.display = 'flex';
+        });
+
+        closeSettingsBtn.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+        });
+
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.style.display = 'none';
+            }
+        });
+
+        saveSettingsBtn.addEventListener('click', async () => {
+            const connStr = dbConnInput.value.trim();
+            if (!connStr) {
+                showModalError("Connection string cannot be empty.");
+                return;
+            }
+
+            saveSettingsBtn.disabled = true;
+            saveSettingsBtn.innerText = "Connecting & Saving...";
+            showModalInfo("Testing database connection and applying schema migrations...");
+
+            try {
+                const response = await fetch('/api/settings/db', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ connection_string: connStr })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || `Error status ${response.status}`);
+                }
+
+                showModalSuccess("Database successfully connected and bootstrapped!");
+                
+                currentUser.has_db = true;
+                updateDatabaseUIStatus(true);
+                
+                setTimeout(() => {
+                    settingsModal.style.display = 'none';
+                }, 1500);
+
+            } catch (err) {
+                showModalError(`Failed: ${err.message}`);
+            } finally {
+                saveSettingsBtn.disabled = false;
+                saveSettingsBtn.innerText = "Save & Connect";
+            }
+        });
+
+        function showModalError(msg) {
+            modalStatus.innerText = msg;
+            modalStatus.className = 'modal-status error';
+        }
+
+        function showModalInfo(msg) {
+            modalStatus.innerText = msg;
+            modalStatus.className = 'modal-status';
+            modalStatus.style.color = '#a5b4fc';
+        }
+
+        function showModalSuccess(msg) {
+            modalStatus.innerText = msg;
+            modalStatus.className = 'modal-status success';
         }
 
         // WebSockets connection using dynamic host

@@ -104,7 +104,7 @@ Deploys a serverless function snippet.
 * **Request Body**:
   ```json
   {
-    "user_id": "123e4567-e89b-12d3-a456-426614174000",
+    "user_id": "<authenticated_user_uuid>",
     "code_content": "print('Hello World!')",
     "language": "python"
   }

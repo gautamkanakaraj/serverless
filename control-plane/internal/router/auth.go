@@ -206,29 +206,7 @@ func CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Provision dynamic database
-	dedicatedConnStr, err := db.ProvisionUserDatabase(userID, email)
-	if err != nil {
-		log.Printf("[Auth] Failed to provision dedicated database for user %s: %v", email, err)
-		// Log warning and continue so authentication works even if Neon has issues
-	} else {
-		// Save connection string in master DB / mock record
-		if db.MockMode {
-			db.MockMu.Lock()
-			u := db.MockUsers[userID]
-			u.DedicatedDBConnStr = dedicatedConnStr
-			db.MockUsers[userID] = u
-			db.MockUsers[googleID] = u
-			db.MockMu.Unlock()
-			log.Printf("[Auth] Saved mock user connection string: %s", dedicatedConnStr)
-		} else {
-			updateConnStrQuery := `UPDATE users SET dedicated_db_conn_str = $1 WHERE id = $2`
-			_, err = db.DB.Exec(updateConnStrQuery, dedicatedConnStr, userID)
-			if err != nil {
-				log.Printf("[Auth] Failed to save dedicated database connection string: %v", err)
-			}
-		}
-	}
+
 
 	// Sign JWT token
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -257,7 +235,7 @@ func CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
-// MeHandler returns the authenticated user's profile info
+// MeHandler returns the authenticated user's profile info along with database status
 func MeHandler(w http.ResponseWriter, r *http.Request) {
 	if SetupCORS(w, r) {
 		return
@@ -287,11 +265,181 @@ func MeHandler(w http.ResponseWriter, r *http.Request) {
 	userID := claims["user_id"].(string)
 	email := claims["email"].(string)
 
+	hasDB := false
+	if db.MockMode {
+		db.MockMu.RLock()
+		u, ok := db.MockUsers[userID]
+		if ok && u.DedicatedDBConnStr != "" {
+			hasDB = true
+		}
+		db.MockMu.RUnlock()
+	} else {
+		var connStr sql.NullString
+		query := `SELECT dedicated_db_conn_str FROM users WHERE id = $1`
+		err = db.DB.QueryRow(query, userID).Scan(&connStr)
+		if err == nil && connStr.Valid && connStr.String != "" {
+			hasDB = true
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"user_id": userID,
 		"email":   email,
+		"has_db":  hasDB,
 	})
+}
+
+type DBSettingsRequest struct {
+	ConnectionString string `json:"connection_string"`
+}
+
+// SaveDBSettingsHandler verifies, bootstraps, encrypts, and saves the user-provided connection string
+func SaveDBSettingsHandler(w http.ResponseWriter, r *http.Request) {
+	if SetupCORS(w, r) {
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userCtx, ok := r.Context().Value(UserContextKey).(*UserContext)
+	if !ok || userCtx == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req DBSettingsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	connStr := req.ConnectionString
+	if connStr == "" {
+		http.Error(w, "Connection string cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	if db.MockMode {
+		db.MockMu.Lock()
+		u, ok := db.MockUsers[userCtx.UserID]
+		if ok {
+			u.DedicatedDBConnStr = connStr
+			db.MockUsers[userCtx.UserID] = u
+		}
+		db.MockMu.Unlock()
+		log.Printf("[Mock Mode] Saved database connection string for user %s: %s", userCtx.Email, connStr)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Database settings saved successfully (Mock Mode)"})
+		return
+	}
+
+	// Real SQL Mode:
+	// 1. Verify connection credentials
+	testDB, err := sql.Open("postgres", connStr)
+	if err != nil {
+		log.Printf("Invalid connection string provided by %s: %v", userCtx.Email, err)
+		http.Error(w, fmt.Sprintf("Invalid connection string: %v", err), http.StatusBadRequest)
+		return
+	}
+	defer testDB.Close()
+
+	err = testDB.Ping()
+	if err != nil {
+		log.Printf("Failed to ping database for user %s: %v", userCtx.Email, err)
+		http.Error(w, fmt.Sprintf("Failed to connect to database: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// 2. Run migrations dynamically to create application tables
+	err = bootstrapUserSchema(testDB, userCtx.UserID, userCtx.Email)
+	if err != nil {
+		log.Printf("Failed to bootstrap user schema for %s: %v", userCtx.Email, err)
+		http.Error(w, fmt.Sprintf("Failed to initialize database schema: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// 3. Encrypt the connection string
+	encryptedConnStr, err := db.EncryptConnectionString(connStr)
+	if err != nil {
+		log.Printf("Failed to encrypt connection string for %s: %v", userCtx.Email, err)
+		http.Error(w, "Internal security encryption error", http.StatusInternalServerError)
+		return
+	}
+
+	// 4. Save connection string in master DB
+	saveQuery := `UPDATE users SET dedicated_db_conn_str = $1 WHERE id = $2`
+	_, err = db.DB.Exec(saveQuery, encryptedConnStr, userCtx.UserID)
+	if err != nil {
+		log.Printf("Failed to save user DB config in master DB: %v", err)
+		http.Error(w, "Database save error", http.StatusInternalServerError)
+		return
+	}
+
+	// 5. Invalidate cached pool in registry
+	db.PoolsMu.Lock()
+	if pool, exists := db.UserDBPools[userCtx.UserID]; exists {
+		pool.Close()
+		delete(db.UserDBPools, userCtx.UserID)
+	}
+	db.PoolsMu.Unlock()
+
+	log.Printf("Successfully saved and verified database credentials for user %s", userCtx.Email)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Database successfully connected and bootstrapped!"})
+}
+
+func bootstrapUserSchema(userDB *sql.DB, userID string, email string) error {
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS users (
+			id UUID PRIMARY KEY,
+			email TEXT UNIQUE NOT NULL,
+			google_id VARCHAR(255) UNIQUE,
+			dedicated_db_conn_str TEXT
+		)`,
+		`CREATE TABLE IF NOT EXISTS functions (
+			id UUID PRIMARY KEY,
+			user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+			code_content TEXT NOT NULL,
+			language TEXT NOT NULL DEFAULT 'javascript',
+			public_url TEXT UNIQUE NOT NULL,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_functions_user_id ON functions(user_id)`,
+		`CREATE TABLE IF NOT EXISTS execution_logs (
+			id UUID PRIMARY KEY,
+			function_id UUID REFERENCES functions(id) ON DELETE CASCADE,
+			log_output TEXT NOT NULL,
+			duration_ms INT,
+			status_code INT,
+			error_message TEXT,
+			timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_execution_logs_function_id ON execution_logs(function_id)`,
+	}
+
+	for _, q := range queries {
+		_, err := userDB.Exec(q)
+		if err != nil {
+			return fmt.Errorf("failed executing bootstrap query: %w", err)
+		}
+	}
+
+	// Replicate user record in isolated database to satisfy foreign keys
+	replicateUserQuery := `INSERT INTO users (id, email) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING`
+	_, err := userDB.Exec(replicateUserQuery, userID, email)
+	if err != nil {
+		return fmt.Errorf("failed replicating user record: %w", err)
+	}
+
+	return nil
 }
 
 // LogoutHandler clears the session cookie

@@ -23,28 +23,68 @@ func ExecuteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	functionID := pathParts[3]
 
-	// 2. Fetch the user's code and language from Neon Postgres or Mock Store
+	// 2. Fetch the user's code and language from their isolated database pool
 	var codeContent string
 	var language string
+	var userID string
 
+	// Step A: Look up who owns this function from the Master Control Database (metadata registry)
 	if db.MockMode {
 		db.MockMu.RLock()
-		rec, exists := db.MockFunctions[functionID]
+		meta, metaExists := db.MockFunctions[functionID]
+		db.MockMu.RUnlock()
+		if !metaExists {
+			http.Error(w, "Function not found in registry", http.StatusNotFound)
+			return
+		}
+		userID = meta.UserID
+	} else {
+		metaQuery := `SELECT user_id FROM functions WHERE id = $1`
+		err := db.DB.QueryRow(metaQuery, functionID).Scan(&userID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				http.Error(w, "Function not found in registry", http.StatusNotFound)
+			} else {
+				log.Printf("Failed to look up function ownership: %v", err)
+				http.Error(w, "Control plane routing error", http.StatusInternalServerError)
+			}
+			return
+		}
+	}
+
+	// Step B: Get the connection pool for this user's isolated database
+	userDB, err := db.GetUserDB(userID)
+	if err != nil {
+		log.Printf("Failed to resolve user isolated database pool: %v", err)
+		http.Error(w, "User isolated database pool unavailable", http.StatusInternalServerError)
+		return
+	}
+
+	// Step C: Load the code content from the user's isolated database
+	if db.MockMode {
+		db.MockMu.RLock()
+		userFuncs, hasFuncs := db.MockIsolatedFunctions[userID]
+		var rec db.MockFunctionRecord
+		var exists bool
+		if hasFuncs {
+			rec, exists = userFuncs[functionID]
+		}
 		db.MockMu.RUnlock()
 		if !exists {
-			http.Error(w, "Function not found", http.StatusNotFound)
+			http.Error(w, "Function code not found in isolated database", http.StatusNotFound)
 			return
 		}
 		codeContent = rec.CodeContent
 		language = rec.Language
 	} else {
-		query := `SELECT code_content, language FROM functions WHERE id = $1`
-		err := db.DB.QueryRow(query, functionID).Scan(&codeContent, &language)
+		userCodeQuery := `SELECT code_content, language FROM functions WHERE id = $1`
+		err = userDB.QueryRow(userCodeQuery, functionID).Scan(&codeContent, &language)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				http.Error(w, "Function not found", http.StatusNotFound)
+				http.Error(w, "Function code not found in isolated database", http.StatusNotFound)
 			} else {
-				http.Error(w, "Database error", http.StatusInternalServerError)
+				log.Printf("Isolated database query failed: %v", err)
+				http.Error(w, "Failed to load code from isolated database", http.StatusInternalServerError)
 			}
 			return
 		}
@@ -74,7 +114,7 @@ func ExecuteHandler(w http.ResponseWriter, r *http.Request) {
 		errMsg = sql.NullString{String: output, Valid: true}
 	}
 
-	// 5. Write execution log to the database or Mock Store
+	// 5. Write execution log directly to the user's isolated database or Mock Store
 	logID := uuid.New().String()
 	if db.MockMode {
 		db.MockMu.Lock()
@@ -92,13 +132,13 @@ func ExecuteHandler(w http.ResponseWriter, r *http.Request) {
 			Timestamp:    time.Now(),
 		})
 		db.MockMu.Unlock()
-		log.Printf("[Mock DB] Recorded execution log for %s (Status: %d, Time: %dms)", functionID, statusCode, durationMs)
+		log.Printf("[Mock DB] Recorded execution log in user %s isolated database for %s (Status: %d, Time: %dms)", userID, functionID, statusCode, durationMs)
 	} else {
 		logQuery := `INSERT INTO execution_logs (id, function_id, log_output, duration_ms, status_code, error_message, timestamp) 
 	                 VALUES ($1, $2, $3, $4, $5, $6, $7)`
-		_, dbErr := db.DB.Exec(logQuery, logID, functionID, output, durationMs, statusCode, errMsg, time.Now())
+		_, dbErr := userDB.Exec(logQuery, logID, functionID, output, durationMs, statusCode, errMsg, time.Now())
 		if dbErr != nil {
-			log.Printf("Failed to record execution log to DB: %v", dbErr)
+			log.Printf("Failed to record execution log to user isolated DB: %v", dbErr)
 		}
 	}
 
