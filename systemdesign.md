@@ -153,26 +153,32 @@ graph TD
 ## 🗄️ Database Schema Design
 
 ```sql
+-- Enable pgcrypto extension for older PostgreSQL compatibility
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 -- Create the users table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email TEXT UNIQUE NOT NULL
+    email TEXT UNIQUE NOT NULL,
+    google_id VARCHAR(255) UNIQUE,
+    dedicated_db_conn_str TEXT
 );
 
 -- Create the functions table
-CREATE TABLE functions (
+CREATE TABLE IF NOT EXISTS functions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     code_content TEXT NOT NULL,
+    language TEXT NOT NULL DEFAULT 'javascript',
     public_url TEXT UNIQUE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Index foreign keys for faster queries
-CREATE INDEX idx_functions_user_id ON functions(user_id);
+CREATE INDEX IF NOT EXISTS idx_functions_user_id ON functions(user_id);
 
 -- Create the execution logs table
-CREATE TABLE execution_logs (
+CREATE TABLE IF NOT EXISTS execution_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     function_id UUID REFERENCES functions(id) ON DELETE CASCADE,
     log_output TEXT NOT NULL,
@@ -183,15 +189,16 @@ CREATE TABLE execution_logs (
 );
 
 -- Index foreign keys for faster queries
-CREATE INDEX idx_execution_logs_function_id ON execution_logs(function_id);
+CREATE INDEX IF NOT EXISTS idx_execution_logs_function_id ON execution_logs(function_id);
 ```
 
 ---
 
-## 🔒 Security & Sandboxing Principles
+## 🔒 Security, Authentication & Sandboxing Principles
 
-1. **Memory Isolation**: Goja runs scripts natively inside the Go process's memory space, meaning scripts cannot interact with host process memory directly unless exposed through runtime bindings. Wasmtime runs compiled binaries inside isolated memory stacks.
-2. **Access Control**: Neither sandbox allows system-level imports by default (e.g., Goja does not support standard Node.js libraries like `fs`, `net`, or `child_process`). 
-3. **Execution Guardrails**: 
-  * Execution time is restricted by an interrupt timer (currently set to 2 seconds).
-  * System resources are isolated (future implementations will include CPU/memory constraints).
+1. **Authentication Flow**: Authentication is handled via Google OAuth 2.0. Successful authentication stores a secure JWT `session_token` cookie. The backend enforces active session checks on all deployment and logging API routes.
+2. **Memory Isolation**: Goja runs scripts natively inside the Go process's memory space, meaning scripts cannot interact with host process memory directly unless exposed through runtime bindings. Wasmtime runs compiled binaries inside isolated memory stacks.
+3. **Access Control**: Neither sandbox allows system-level imports by default (e.g., Goja does not support standard Node.js libraries like `fs`, `net`, or `child_process`). 
+4. **Execution Guardrails**: 
+   * Execution time is restricted by an interrupt timer (currently set to 2 seconds).
+   * Local Python executions are constrained using process groups and restricted virtual memory (128MB), output file sizes (512KB), and process limits (15) via `ulimit`.

@@ -59,18 +59,30 @@ For a comprehensive breakdown of the components, request workflows, and database
 ## 🛠️ Getting Started & Setup
 
 ### Prerequisites
-* **Go**: `v1.25` or higher.
-* **Python**: `v3.x` (required if running Python functions without WASM binaries).
+* **Go**: `v1.20` or higher.
+* **Python**: `v3.x` (required for executing Python scripts in the fallback sandbox environment).
 * **Database**: A PostgreSQL instance (e.g., [Neon Postgres](https://neon.tech/)).
 
 ### 1. Configuration
-Create a `.env` file in the root of your project directory and add your Neon connection string:
+Create a `.env` file in the root of your project directory with the following variables:
 ```env
-NEON_DB_URL="postgresql://<user>:<password>@<host>/<database>?sslmode=require"
+# Master DB Connection String
+NEON_DB_URL="postgresql://neondb_owner:...@ep-...aws.neon.tech/neondb?sslmode=require"
+
+# Google OAuth 2.0 Credentials
+GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+GOOGLE_REDIRECT_URL="http://localhost:8080/api/auth/callback"
+
+# Session JWT Configuration
+JWT_SECRET="your-session-jwt-secret-key"
+
+# App Environment (triggers secure cookies in production)
+APP_ENV="development"
 ```
 
 ### 2. Database Schema Initialization (Optional)
-If you have already executed the SQL schema script directly inside the Neon SQL Editor, you can skip this step. Otherwise, you can run the root database migrator tool to apply all schema definitions, indices, and the dummy test user to your database:
+If you have already executed the SQL schema script directly inside the Neon SQL Editor, you can skip this step. Otherwise, you can run the root database migrator tool to apply all schema definitions and indexes to your database:
 ```bash
 go run main.go
 ```
@@ -86,12 +98,11 @@ go run control-plane/cmd/server/main.go
 ```
 
 ### 2. Launch the Developer Frontend
-Open the client interface directly in your browser:
-```bash
-# On Linux / macOS
-open frontend/src/index.html
+Since the application sets HTTP-only cookies and relies on Google OAuth redirects, the frontend must be accessed via the Go backend server's host.
 
-# Or simply open the file path inside your web browser.
+Open your browser and navigate to:
+```
+http://localhost:8080
 ```
 
 ---
@@ -104,9 +115,8 @@ Deploys a serverless function snippet.
 * **Request Body**:
   ```json
   {
-    "user_id": "<authenticated_user_uuid>",
-    "code_content": "print('Hello World!')",
-    "language": "python"
+    "code_content": "console.log('Hello World!');",
+    "language": "javascript"
   }
   ```
 * **Response (201 Created)**:
@@ -125,5 +135,10 @@ Triggers execution of the deployed function in the isolated sandbox.
 ### 3. `GET /api/ws`
 Establishes WebSocket connections to broadcast live console logs during execution.
 
-For static typed language the env is yet to be done
+---
+
+## 🔮 Planned Enhancements
+* Support for compiled runtimes (e.g., Go, Rust).
+* Precompiled WebAssembly execution packages.
+* Encrypted database connection strings in the master database.
 
