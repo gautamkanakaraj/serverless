@@ -306,6 +306,88 @@ func MeHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// AutoProvisionDBHandler programmatically provisions a Neon database for the user, encrypts, and saves it
+func AutoProvisionDBHandler(w http.ResponseWriter, r *http.Request) {
+	if SetupCORS(w, r) {
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userCtx, ok := r.Context().Value(UserContextKey).(*UserContext)
+	if !ok || userCtx == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	log.Printf("[Provisioning] Auto-provisioning database requested by %s", userCtx.Email)
+
+	// Call Neon provisioning module
+	connStr, err := db.ProvisionUserDatabase(userCtx.UserID, userCtx.Email)
+	if err != nil {
+		log.Printf("Failed to auto-provision database for user %s: %v", userCtx.Email, err)
+		http.Error(w, fmt.Sprintf("Auto-provisioning failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	if db.MockMode {
+		db.MockMu.Lock()
+		u, ok := db.MockUsers[userCtx.UserID]
+		if ok {
+			u.DedicatedDBConnStr = connStr
+			db.MockUsers[userCtx.UserID] = u
+		}
+		db.MockMu.Unlock()
+		log.Printf("[Mock Mode] Auto-provisioned mock database for user %s: %s", userCtx.Email, connStr)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{
+			"message": "Database auto-provisioned successfully (Mock Mode)",
+			"connection_string": connStr,
+		})
+		return
+	}
+
+	// Real DB Mode:
+	// 3. Encrypt the connection string
+	encryptedConnStr, err := db.EncryptConnectionString(connStr)
+	if err != nil {
+		log.Printf("Failed to encrypt connection string for %s: %v", userCtx.Email, err)
+		http.Error(w, "Internal security encryption error", http.StatusInternalServerError)
+		return
+	}
+
+	// 4. Save connection string in master DB
+	saveQuery := `UPDATE users SET dedicated_db_conn_str = $1 WHERE id = $2`
+	_, err = db.DB.Exec(saveQuery, encryptedConnStr, userCtx.UserID)
+	if err != nil {
+		log.Printf("Failed to save user DB config in master DB: %v", err)
+		http.Error(w, "Database save error", http.StatusInternalServerError)
+		return
+	}
+
+	// 5. Invalidate cached pool in registry
+	db.PoolsMu.Lock()
+	if pool, exists := db.UserDBPools[userCtx.UserID]; exists {
+		pool.Close()
+		delete(db.UserDBPools, userCtx.UserID)
+	}
+	db.PoolsMu.Unlock()
+
+	log.Printf("Successfully auto-provisioned and registered database for user %s", userCtx.Email)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Database successfully auto-provisioned and bootstrapped!",
+		"connection_string": connStr,
+	})
+}
+
 type DBSettingsRequest struct {
 	ConnectionString string `json:"connection_string"`
 }

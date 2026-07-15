@@ -145,6 +145,7 @@ func main() {
 
 	// Settings routes
 	http.HandleFunc("/api/settings/db", router.AuthenticateMiddleware(router.SaveDBSettingsHandler))
+	http.HandleFunc("/api/settings/db/provision", router.AuthenticateMiddleware(router.AutoProvisionDBHandler))
 
 	// Serve the frontend static files with no-cache to prevent browser caching issues during dev
 	fs := http.FileServer(http.Dir("frontend/src"))

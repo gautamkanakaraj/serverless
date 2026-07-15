@@ -764,9 +764,15 @@
                 <input type="text" id="dbConnInput" placeholder="postgres://user:password@host/neondb?sslmode=require">
                 <span class="input-helper">Example: postgresql://gautam:your_password@ep-cool-butterfly.ap-southeast-1.aws.neon.tech/neondb?sslmode=require</span>
             </div>
-            <div class="modal-actions">
-                <button class="btn-cancel" id="closeSettingsBtn">Cancel</button>
-                <button class="btn-save" id="saveSettingsBtn">Save & Connect</button>
+            <div class="modal-actions" style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; justify-content: space-between; width: 100%; gap: 12px;">
+                    <button class="btn-cancel" id="closeSettingsBtn" style="flex: 1;">Cancel</button>
+                    <button class="btn-save" id="saveSettingsBtn" style="flex: 1;">Save & Connect</button>
+                </div>
+                <div style="border-top: 1px solid var(--border-light); padding-top: 12px; margin-top: 4px; text-align: center; width: 100%;">
+                    <span style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 8px;">Don't have a connection string? Let us provision one for you.</span>
+                    <button class="btn-save" id="autoProvisionBtn" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); width: 100%;">⚡ Auto-Provision Database (Neon)</button>
+                </div>
             </div>
             <div id="modalStatus" class="modal-status"></div>
         </div>
@@ -788,6 +794,7 @@
         const modalStatus = document.getElementById('modalStatus');
         const bannerSettingsLink = document.getElementById('bannerSettingsLink');
         const deployBtn = document.getElementById('deployBtn');
+        const autoProvisionBtn = document.getElementById('autoProvisionBtn');
         
         let currentUser = null;
 
@@ -870,6 +877,44 @@
         settingsModal.addEventListener('click', (e) => {
             if (e.target === settingsModal) {
                 settingsModal.style.display = 'none';
+            }
+        });
+
+        autoProvisionBtn.addEventListener('click', async () => {
+            autoProvisionBtn.disabled = true;
+            autoProvisionBtn.innerText = "⚡ Provisioning Neon DB...";
+            showModalInfo("Requesting database setup and applying migrations...");
+
+            try {
+                const response = await fetch('/api/settings/db/provision', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || `Error status ${response.status}`);
+                }
+
+                showModalSuccess("Database successfully provisioned and connected!");
+                if (data.connection_string) {
+                    dbConnInput.value = data.connection_string;
+                }
+                
+                currentUser.has_db = true;
+                updateDatabaseUIStatus(true);
+                
+                setTimeout(() => {
+                    settingsModal.style.display = 'none';
+                }, 1500);
+
+            } catch (err) {
+                showModalError(`Failed: ${err.message}`);
+            } finally {
+                autoProvisionBtn.disabled = false;
+                autoProvisionBtn.innerHTML = "⚡ Auto-Provision Database (Neon)";
             }
         });
 

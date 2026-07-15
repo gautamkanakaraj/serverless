@@ -69,3 +69,60 @@ func TestSaveDBSettingsHandler(t *testing.T) {
 		t.Errorf("Connection string not saved: got %q", savedConnStr)
 	}
 }
+
+func TestAutoProvisionDBHandler(t *testing.T) {
+	// Enable Mock Mode for testing
+	db.MockMode = true
+	
+	// Create mock user
+	userID := "test-provision-user-uuid"
+	db.MockUsers[userID] = db.MockUserRecord{
+		ID:    userID,
+		Email: "test-provision@minilambda.com",
+	}
+
+	// Create a POST request to provision DB
+	req, err := http.NewRequest("POST", "/api/settings/db/provision", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Inject auth context using the context keys
+	ctx := context.WithValue(req.Context(), UserContextKey, &UserContext{
+		UserID: userID,
+		Email:  "test-provision@minilambda.com",
+	})
+	req = req.WithContext(ctx)
+
+	// Create ResponseRecorder
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(AutoProvisionDBHandler)
+
+	// Invoke handler
+	handler.ServeHTTP(rr, req)
+
+	// Verify response code
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+
+	// Verify response body
+	var resp map[string]string
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response body: %v", err)
+	}
+
+	if resp["message"] != "Database auto-provisioned successfully (Mock Mode)" {
+		t.Errorf("Unexpected response message: got %q", resp["message"])
+	}
+
+	// Verify connection string saved in Mock Users map
+	db.MockMu.RLock()
+	savedConnStr := db.MockUsers[userID].DedicatedDBConnStr
+	db.MockMu.RUnlock()
+
+	expectedSubStr := "postgres://mock-host/user-testprovisionuseruuid"
+	if savedConnStr != expectedSubStr {
+		t.Errorf("Auto-provisioned connection string not saved correctly: got %q, want %q", savedConnStr, expectedSubStr)
+	}
+}
