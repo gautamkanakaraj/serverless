@@ -1,11 +1,15 @@
 package engine
 
 import (
-    "fmt"
-    "strings"
-    "time"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
 
-    "github.com/dop251/goja"
+	"github.com/dop251/goja"
 )
 
 // ExecuteJS compiles and executes JS code. If a global 'handler' function is defined,
@@ -35,10 +39,47 @@ func ExecuteJS(code string, event map[string]interface{}, streamLog func(string)
         }
         
         return goja.Undefined()
-    })
-    vm.Set("console", console)
+	})
+	vm.Set("console", console)
 
-    // Set Timeouts: Prevent infinite loops
+	// Expose fetch global function to Goja
+	vm.Set("fetch", func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) < 1 {
+			panic(vm.ToValue("fetch requires at least a URL string"))
+		}
+		targetURL := call.Arguments[0].String()
+		options := make(map[string]interface{})
+		if len(call.Arguments) > 1 {
+			if optsObj, ok := call.Arguments[1].Export().(map[string]interface{}); ok {
+				options = optsObj
+			}
+		}
+
+		resp, err := gojaFetch(vm, targetURL, options)
+		if err != nil {
+			panic(vm.ToValue(fmt.Sprintf("fetch error: %v", err)))
+		}
+
+		respObj := vm.NewObject()
+		respObj.Set("status", resp.Status)
+		respObj.Set("statusText", resp.StatusText)
+		respObj.Set("headers", resp.Headers)
+		respObj.Set("text", func(c goja.FunctionCall) goja.Value {
+			return vm.ToValue(resp.bodyText)
+		})
+		respObj.Set("json", func(c goja.FunctionCall) goja.Value {
+			var parsedVal interface{}
+			err := json.Unmarshal([]byte(resp.bodyText), &parsedVal)
+			if err != nil {
+				panic(vm.ToValue(fmt.Sprintf("failed to parse JSON response: %v", err)))
+			}
+			return vm.ToValue(parsedVal)
+		})
+
+		return respObj
+	})
+
+	// Set Timeouts: Prevent infinite loops
     timer := time.AfterFunc(2*time.Second, func() {
         vm.Interrupt("Execution Timeout: Function exceeded 2 seconds!")
     })
@@ -95,6 +136,69 @@ func ExecuteJS(code string, event map[string]interface{}, streamLog func(string)
         }
     }
 
-    // Fallback: If no handler function is defined, return the console output as the body
-    return outputBuilder.String(), outputBuilder.String(), nil
+	// Fallback: If no handler function is defined, return the console output as the body
+	return outputBuilder.String(), outputBuilder.String(), nil
+}
+
+type fetchResponse struct {
+	Status     int               `json:"status"`
+	StatusText string            `json:"statusText"`
+	Headers    map[string]string `json:"headers"`
+	bodyText   string
+}
+
+func gojaFetch(vm *goja.Runtime, targetURL string, options map[string]interface{}) (*fetchResponse, error) {
+	method := "GET"
+	if m, ok := options["method"].(string); ok && m != "" {
+		method = strings.ToUpper(m)
+	}
+
+	var bodyReader io.Reader
+	if b, ok := options["body"].(string); ok && b != "" {
+		bodyReader = bytes.NewReader([]byte(b))
+	}
+
+	req, err := http.NewRequest(method, targetURL, bodyReader)
+	if err != nil {
+		return nil, err
+	}
+
+	if headers, ok := options["headers"].(map[string]interface{}); ok {
+		for k, v := range headers {
+			if strVal, ok := v.(string); ok {
+				req.Header.Set(k, strVal)
+			}
+		}
+	}
+
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Read limited response body (max 512KB)
+	limitReader := io.LimitReader(resp.Body, 512*1024)
+	bodyBytes, err := io.ReadAll(limitReader)
+	if err != nil {
+		return nil, err
+	}
+
+	respHeaders := make(map[string]string)
+	for k, v := range resp.Header {
+		if len(v) > 0 {
+			respHeaders[k] = v[0]
+		}
+	}
+
+	return &fetchResponse{
+		Status:     resp.StatusCode,
+		StatusText: resp.Status,
+		Headers:    respHeaders,
+		bodyText:   string(bodyBytes),
+	}, nil
 }

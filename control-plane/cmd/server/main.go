@@ -15,9 +15,10 @@ import (
 )
 
 type DeployRequest struct {
-	UserID      string `json:"user_id"`
-	CodeContent string `json:"code_content"`
-	Language    string `json:"language"`
+	UserID         string `json:"user_id"`
+	CodeContent    string `json:"code_content"`
+	Language       string `json:"language"`
+	CronExpression string `json:"cron_expression"`
 }
 
 type DeployResponse struct {
@@ -71,32 +72,34 @@ func deployHandler(w http.ResponseWriter, r *http.Request) {
 		db.MockMu.Lock()
 		// Save metadata registry
 		db.MockFunctions[functionID] = db.MockFunctionRecord{
-			ID:          functionID,
-			UserID:      userID,
-			CodeContent: "REGISTRY_ONLY",
-			Language:    lang,
-			PublicURL:   publicURL,
-			CreatedAt:   time.Now(),
+			ID:             functionID,
+			UserID:         userID,
+			CodeContent:    "REGISTRY_ONLY",
+			Language:       lang,
+			PublicURL:      publicURL,
+			CronExpression: req.CronExpression,
+			CreatedAt:      time.Now(),
 		}
 		// Save to isolated database
 		if db.MockIsolatedFunctions[userID] == nil {
 			db.MockIsolatedFunctions[userID] = make(map[string]db.MockFunctionRecord)
 		}
 		db.MockIsolatedFunctions[userID][functionID] = db.MockFunctionRecord{
-			ID:          functionID,
-			UserID:      userID,
-			CodeContent: req.CodeContent,
-			Language:    lang,
-			PublicURL:   publicURL,
-			CreatedAt:   time.Now(),
+			ID:             functionID,
+			UserID:         userID,
+			CodeContent:    req.CodeContent,
+			Language:       lang,
+			PublicURL:      publicURL,
+			CronExpression: req.CronExpression,
+			CreatedAt:      time.Now(),
 		}
 		db.MockMu.Unlock()
 		log.Printf("[Mock DB] Deployed function %s to user isolated database for user %s", functionID, userID)
 	} else {
 		// 1. Insert metadata registry into Master DB
-		masterQuery := `INSERT INTO functions (id, user_id, code_content, language, public_url, created_at) 
-		                VALUES ($1, $2, $3, $4, $5, $6)`
-		_, err = db.DB.Exec(masterQuery, functionID, userID, "REGISTRY_ONLY", lang, publicURL, time.Now())
+		masterQuery := `INSERT INTO functions (id, user_id, code_content, language, public_url, cron_expression, created_at) 
+		                VALUES ($1, $2, $3, $4, $5, $6, $7)`
+		_, err = db.DB.Exec(masterQuery, functionID, userID, "REGISTRY_ONLY", lang, publicURL, req.CronExpression, time.Now())
 		if err != nil {
 			log.Printf("Failed to insert function metadata in master DB: %v", err)
 			http.Error(w, "Failed to register function metadata", http.StatusInternalServerError)
@@ -104,9 +107,9 @@ func deployHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// 2. Insert real function content into isolated User DB
-		userQuery := `INSERT INTO functions (id, user_id, code_content, language, public_url, created_at) 
-		              VALUES ($1, $2, $3, $4, $5, $6)`
-		_, err = userDB.Exec(userQuery, functionID, userID, req.CodeContent, lang, publicURL, time.Now())
+		userQuery := `INSERT INTO functions (id, user_id, code_content, language, public_url, cron_expression, created_at) 
+		              VALUES ($1, $2, $3, $4, $5, $6, $7)`
+		_, err = userDB.Exec(userQuery, functionID, userID, req.CodeContent, lang, publicURL, req.CronExpression, time.Now())
 		if err != nil {
 			log.Printf("Failed to deploy function to user isolated DB: %v", err)
 			// Rollback master insertion to keep them in sync
@@ -116,6 +119,9 @@ func deployHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("[DB] Function %s successfully written to user %s isolated database", functionID, userID)
 	}
+
+	// Register or update the background cron schedule
+	router.RegisterOrUpdateCronJob(functionID, userID, req.CodeContent, lang, req.CronExpression)
 
 	res := DeployResponse{
 		FunctionID: functionID,
@@ -131,6 +137,7 @@ func deployHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	godotenv.Load()
 	db.InitDB() // inital the neon db
+	router.InitializeCronScheduler() // start scheduler thread
 
 	// Auth API endpoints
 	http.HandleFunc("/api/auth/login", router.LoginHandler)

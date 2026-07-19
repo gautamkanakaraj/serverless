@@ -20,8 +20,13 @@ CREATE TABLE IF NOT EXISTS functions (
     code_content TEXT NOT NULL,
     language TEXT NOT NULL DEFAULT 'javascript',
     public_url TEXT UNIQUE NOT NULL,
+    cron_expression VARCHAR(255) DEFAULT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Ensure columns exist if table was already created
+ALTER TABLE functions ADD COLUMN IF NOT EXISTS cron_expression VARCHAR(255) DEFAULT NULL;
+
 
 -- Index foreign keys for faster queries
 CREATE INDEX IF NOT EXISTS idx_functions_user_id ON functions(user_id);

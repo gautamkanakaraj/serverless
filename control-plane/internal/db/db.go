@@ -36,12 +36,13 @@ var (
 )
 
 type MockFunctionRecord struct {
-	ID          string
-	UserID      string
-	CodeContent string
-	Language    string
-	PublicURL   string
-	CreatedAt   time.Time
+	ID             string
+	UserID         string
+	CodeContent    string
+	Language       string
+	PublicURL      string
+	CronExpression string
+	CreatedAt      time.Time
 }
 
 type MockLogRecord struct {

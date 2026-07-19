@@ -17,6 +17,7 @@ require (
 	github.com/google/pprof v0.0.0-20230207041349-798e818bf904 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/lib/pq v1.12.3 // indirect
+	github.com/robfig/cron/v3 v3.0.1 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/text v0.3.8 // indirect
 )

@@ -724,6 +724,31 @@
                         <option value="python">Python 3 (Local Sandbox)</option>
                     </select>
                 </div>
+
+                <div class="sidebar-section" style="border-top: 1px solid var(--border-light); padding-top: 15px; margin-top: 15px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 500;">
+                        <input type="checkbox" id="enableScheduleCheckbox" style="cursor: pointer; margin: 0; width: 16px; height: 16px;">
+                        <span>⏰ Enable Cron Trigger</span>
+                    </label>
+                    
+                    <div id="scheduleConfigContainer" style="display: none; margin-top: 12px; flex-direction: column; gap: 10px;">
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; display: block;">Frequency Preset</label>
+                            <select id="schedulePresetSelect" style="width: 100%; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-light); border-radius: 8px; color: #fff; padding: 8px; font-size: 0.85rem; outline: none; cursor: pointer;">
+                                <option value="*/5 * * * *">Every 5 Minutes</option>
+                                <option value="0 * * * *">Every Hour</option>
+                                <option value="0 0 * * *">Every Day (Midnight)</option>
+                                <option value="custom">Custom Cron Expression</option>
+                            </select>
+                        </div>
+                        
+                        <div id="customCronInputContainer" style="display: none;">
+                            <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; display: block;">Cron Expression</label>
+                            <input type="text" id="cronExpressionInput" value="*/5 * * * *" placeholder="* * * * *" style="width: 100%; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-light); border-radius: 8px; color: #fff; padding: 8px; font-size: 0.85rem; outline: none;">
+                            <span style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-top: 4px;">Standard 5-field cron (min, hour, dom, mon, dow)</span>
+                        </div>
+                    </div>
+                </div>
                 
                 <button class="btn-deploy" id="deployBtn">
                     <span>🚀</span> Deploy Function
@@ -1073,11 +1098,45 @@ print("Hello from Python Mini-Lambda!")
             terminal.scrollTop = terminal.scrollHeight;
         }
 
+        // Schedule Config Elements & Listeners
+        const enableScheduleCheckbox = document.getElementById('enableScheduleCheckbox');
+        const scheduleConfigContainer = document.getElementById('scheduleConfigContainer');
+        const schedulePresetSelect = document.getElementById('schedulePresetSelect');
+        const customCronInputContainer = document.getElementById('customCronInputContainer');
+        const cronExpressionInput = document.getElementById('cronExpressionInput');
+
+        enableScheduleCheckbox.addEventListener('change', () => {
+            if (enableScheduleCheckbox.checked) {
+                scheduleConfigContainer.style.display = 'flex';
+            } else {
+                scheduleConfigContainer.style.display = 'none';
+            }
+        });
+
+        schedulePresetSelect.addEventListener('change', () => {
+            if (schedulePresetSelect.value === 'custom') {
+                customCronInputContainer.style.display = 'block';
+            } else {
+                customCronInputContainer.style.display = 'none';
+                cronExpressionInput.value = schedulePresetSelect.value;
+            }
+        });
+
         // Deploy logic
         deployBtn.addEventListener('click', async () => {
             logToTerminal("Initiating deployment to Control Plane...");
             deployBtn.disabled = true;
             deployBtn.innerText = "Deploying...";
+
+            // Determine cron expression if enabled
+            let cronExpr = "";
+            if (enableScheduleCheckbox.checked) {
+                if (schedulePresetSelect.value === 'custom') {
+                    cronExpr = cronExpressionInput.value.trim();
+                } else {
+                    cronExpr = schedulePresetSelect.value;
+                }
+            }
 
             try {
                 const response = await fetch('/api/deploy', {
@@ -1087,7 +1146,8 @@ print("Hello from Python Mini-Lambda!")
                     body: JSON.stringify({
                         user_id: currentUser ? currentUser.user_id : "",
                         code_content: codeEditor.value,
-                        language: languageSelect.value
+                        language: languageSelect.value,
+                        cron_expression: cronExpr
                     })
                 });
 

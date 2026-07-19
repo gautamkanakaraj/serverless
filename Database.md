@@ -18,7 +18,7 @@ graph TD
     
     subgraph CentralMasterDB ["Central Master Database (Control Plane)"]
         M_Users["users Table<br/>• id (UUID)<br/>• email (TEXT)<br/>• google_id (VARCHAR)<br/>• dedicated_db_conn_str (AES-GCM Encrypted)"]
-        M_Functions["functions Table (Global Registry)<br/>• id (UUID)<br/>• user_id (UUID)<br/>• code_content ('REGISTRY_ONLY')<br/>• public_url (TEXT)"]
+        M_Functions["functions Table (Global Registry)<br/>• id (UUID)<br/>• user_id (UUID)<br/>• code_content ('REGISTRY_ONLY')<br/>• public_url (TEXT)<br/>• cron_expression (VARCHAR)"]
     end
     
     Router -->|Query User metadata| M_Users
@@ -32,12 +32,12 @@ graph TD
     subgraph UserDBs ["Isolated Tenant Databases"]
         subgraph UserDB_A ["User A's Dedicated DB"]
             UA_Users["users Table"]
-            UA_Functions["functions Table<br/>(Stores Real Code)"]
+            UA_Functions["functions Table<br/>(Stores Real Code)<br/>• cron_expression (VARCHAR)"]
             UA_Logs["execution_logs Table"]
         end
         subgraph UserDB_B ["User B's Dedicated DB"]
             UB_Users["users Table"]
-            UB_Functions["functions Table<br/>(Stores Real Code)"]
+            UB_Functions["functions Table<br/>(Stores Real Code)<br/>• cron_expression (VARCHAR)"]
             UB_Logs["execution_logs Table"]
         end
     end
@@ -83,6 +83,7 @@ Stores deployed code snippets and runtime parameters.
 | `code_content` | `TEXT` | `NOT NULL` | The function source code. (Replaced with `"REGISTRY_ONLY"` on the Master DB). |
 | `language` | `TEXT` | `DEFAULT 'javascript'` | Runtime engine for executing the code (`javascript` or `python`). |
 | `public_url` | `TEXT` | `UNIQUE`, `NOT NULL` | The unique public HTTP path to invoke the function. |
+| `cron_expression`| `VARCHAR(255)` | `DEFAULT NULL` | Scheduled interval cron string (e.g. `*/5 * * * *`). |
 | `created_at` | `TIMESTAMPTZ`| `DEFAULT CURRENT_TIMESTAMP` | The timestamp when the function was deployed. |
 
 * **Index**: `idx_functions_user_id` is applied on `user_id` to speed up function listings and deployments.
