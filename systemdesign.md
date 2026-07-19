@@ -54,7 +54,8 @@ graph TD
 
 ### 1. Frontend Dashboard (Client Interface)
 * **Code Editor**: Provides a UI for writing function code (JavaScript / Python). 
-* **Quick-start Templates**: An editor header dropdown offering templates for Basic Handlers, lightweight REST APIs, and full interactive Static HTML Sites.
+* **Quick-start Templates**: An editor header custom-styled dropdown menu offering templates for Basic Handlers, lightweight REST APIs, and full interactive Static HTML Sites.
+* **Standalone Developer Documentation Page**: A dedicated standalone documentation page (`docs.html`) outlining platform concepts, ingress/egress APIs, and code specifications, designed for both technical and non-technical stakeholders.
 * **Deployment Trigger**: Posts code payload and optional schedule to the control plane deployment endpoint.
 * **Cron Toggle & Configuration**: Allows developers to easily toggle scheduled execution, choose frequency presets, or type standard 5-field cron strings.
 * **WebSocket Console**: Establishes a persistent connection to the log streaming service, updating a simulated terminal with live execution logs (`stdout`/`stderr`).

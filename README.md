@@ -48,6 +48,8 @@ For a comprehensive breakdown of the components, request workflows, and database
 
 * **Sub-millisecond Cold Starts**: Uses native Goja (ECMAScript 5.1 engine) to execute JavaScript code in memory without process fork overhead.
 * **Quick-start Template Presets**: Populates code templates instantly in the dashboard editor for Basic Handlers, lightweight REST API Endpoints, and full interactive Static HTML Sites.
+* **Standalone Developer Documentation Page**: Includes a beautifully styled standalone documentation page (`/docs.html`) that explains serverless execution, cold starts, and multi-tenant database isolation clearly for non-developers, alongside structured API and code specifications.
+* **GitHub Repository Integration**: Connects the header to the official project repository for quick codebase navigation.
 * **Outbound HTTP Requests (`fetch` API)**: Enables isolated serverless functions to perform GET/POST outbound calls (constrained by a secure 5s timeout and 512KB response limit).
 * **Scheduled Cron Jobs (Background Workers)**: Provides automated executions via a background Go scheduler thread using standard 5-field cron syntax or quick UI presets.
 * **Wasm & Python Sandboxing**: Integrates the Wasmtime JIT compiler to run Python code via `python-3.11.wasm`. Falls back gracefully to local python3 execution wrapped in timeouts and ulimit caps.

@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini-Lambda - Developer Documentation</title>
+    <!-- Premium Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-deep: #0b0c10;
+            --bg-panel: #161822;
+            --bg-card: rgba(30, 32, 45, 0.6);
+            --accent: #6366f1; /* Premium Indigo */
+            --accent-hover: #4f46e5;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --border-light: rgba(255, 255, 255, 0.08);
+            --terminal-green: #34d399; /* Emerald */
+            --terminal-bg: #07080b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: var(--bg-panel);
+            border-bottom: 1px solid var(--border-light);
+            padding: 16px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-logo span {
+            font-size: 1.5rem;
+            color: var(--accent);
+            text-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+        }
+
+        .header-logo h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .btn-back {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-light);
+            color: var(--text-main);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-back:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: var(--accent);
+        }
+
+        .layout {
+            display: flex;
+            flex: 1;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 40px;
+            gap: 40px;
+        }
+
+        /* Sidebar navigation */
+        .sidebar {
+            width: 260px;
+            position: sticky;
+            top: 100px;
+            height: fit-content;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sidebar-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+            padding-left: 12px;
+        }
+
+        .sidebar-link {
+            padding: 10px 16px;
+            border-radius: 8px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-link:hover, .sidebar-link.active {
+            color: #fff;
+            background: rgba(99, 102, 241, 0.08);
+            border-left: 3px solid var(--accent);
+            padding-left: 13px; /* Align due to border offset */
+        }
+
+        /* Main content pane */
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            max-width: 900px;
+        }
+
+        .card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            padding: 35px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            scroll-margin-top: 100px;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid var(--border-light);
+            padding-bottom: 12px;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            color: #a5b4fc;
+            margin: 25px 0 10px 0;
+        }
+
+        p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        ul, ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
+            color: var(--text-muted);
+            font-size: 0.92rem;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .highlight-box {
+            background: rgba(99, 102, 241, 0.04);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .highlight-box strong {
+            color: #a5b4fc;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        code {
+            font-family: 'Fira Code', monospace;
+            background: var(--terminal-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #f43f5e;
+            border: 1px solid var(--border-light);
+        }
+
+        pre {
+            background: var(--terminal-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            color: var(--terminal-green);
+            overflow-x: auto;
+            margin: 15px 0;
+            line-height: 1.5;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .feature-item {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .feature-item strong {
+            color: #58a6ff;
+            font-size: 0.95rem;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .feature-item span {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        footer {
+            background: var(--bg-panel);
+            border-top: 1px solid var(--border-light);
+            padding: 20px 40px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-logo">
+            <span>⚡</span>
+            <h1>Mini-Lambda Docs</h1>
+        </div>
+        <a href="/" class="btn-back">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back to Dashboard
+        </a>
+    </header>
+
+    <div class="layout">
+        <!-- Sidebar Menu -->
+        <nav class="sidebar">
+            <span class="sidebar-title">Getting Started</span>
+            <a href="#about" class="sidebar-link active">💡 Platform Concept</a>
+            <a href="#specs" class="sidebar-link">🌐 Function Specs</a>
+            
+            <span class="sidebar-title">Capabilities</span>
+            <a href="#apis" class="sidebar-link">📡 REST API Endpoints</a>
+            <a href="#html" class="sidebar-link">🎨 HTML & Static Hosting</a>
+            <a href="#outbound" class="sidebar-link">⚡ Outbound fetch API</a>
+            <a href="#cron" class="sidebar-link">⏰ Scheduled Cron Jobs</a>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="content">
+            
+            <!-- About Section -->
+            <section id="about" class="card">
+                <h2>💡 What is Mini-Lambda?</h2>
+                <p>
+                    Mini-Lambda is an open-source, lightweight multi-tenant serverless compute platform. It is designed to let developers deploy code snippets (currently in JavaScript and Python) instantly and serve them on-demand via unique trigger URLs.
+                </p>
+                
+                <div class="highlight-box">
+                    <strong>🤔 How it Works (For Non-Developers & Stakeholders)</strong>
+                    <p style="margin-bottom: 0;">
+                        In traditional hosting, you run a server that runs 24/7, paying for it even when no one is visiting. Mini-Lambda resolves this:
+                    </p>
+                    <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+                        <li><b>In-Memory Compilation</b>: Code snippets are parsed and held inside Goja JavaScript engine execution environments in memory. They boot up under a millisecond, removing container lag.</li>
+                        <li><b>Neon Multi-Tenant Postgres</b>: To prevent security data leaks, every user gets their own dedicated database connection (either auto-provisioned automatically or manual input). All deployment configs and logs are isolated strictly within your pool.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Specs Section -->
+            <section id="specs" class="card">
+                <h2>🌐 Ingress Handler & Specification</h2>
+                <p>
+                    Your function's core execution routine starts from the <code>handler(event)</code> entry point.
+                </p>
+                
+                <h3>📥 Input: The <code>event</code> Parameter</h3>
+                <p>The system passes details about the incoming HTTP request directly into the handler:</p>
+                <ul>
+                    <li><code>event.method</code>: The HTTP method (e.g. <code>"GET"</code>, <code>"POST"</code>, <code>"PUT"</code>).</li>
+                    <li><code>event.query</code>: Object mapping query parameters parsed from the trigger URL.</li>
+                    <li><code>event.headers</code>: Key-value map representing the HTTP request headers.</li>
+                    <li><code>event.body</code>: Raw string containing incoming request payloads.</li>
+                </ul>
+
+                <h3>📤 Output: Structured HTTP Responses</h3>
+                <p>Return a response object to custom-configure status codes, set content headers, and provide data payloads:</p>
+                <pre>function handler(event) {
+    return {
+        status: 200,
+        headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "max-age=120"
+        },
+        body: JSON.stringify({
+            ok: true,
+            received_method: event.method
+        })
+    };
+}</pre>
+            </section>
+
+            <!-- REST APIs -->
+            <section id="apis" class="card">
+                <h2>📡 Lightweight REST APIs</h2>
+                <p>
+                    You can easily parse query parameters or HTTP methods to implement stateless API endpoints. Perfect for processing webhooks, formatting inputs, or serving REST resources.
+                </p>
+                <pre>function handler(event) {
+    const method = event.method;
+    const email = event.query.email || "unknown";
+
+    if (method !== "POST") {
+        return {
+            status: 405,
+            body: "Only POST requests are supported"
+        };
+    }
+
+    return {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            status: "processed",
+            user_email: email,
+            timestamp: new Date().toISOString()
+        })
+    };
+}</pre>
+            </section>
+
+            <!-- HTML Hosting -->
+            <section id="html" class="card">
+                <h2>🎨 Serverless HTML Sites & Static Pages</h2>
+                <p>
+                    By returning custom <code>text/html</code> content headers, developers can host fully interactive, responsive single-page web applications or simple static blogs directly from their trigger URL.
+                </p>
+                <pre>function handler(event) {
+    const htmlCode = `
+    &lt;!DOCTYPE html&gt;
+    &lt;html&gt;
+    &lt;head&gt;
+        &lt;meta charset="UTF-8"&gt;
+        &lt;title&gt;My Serverless Landing Page&lt;/title&gt;
+        &lt;style&gt;
+            body { background: #0f1015; color: #fff; font-family: system-ui; text-align: center; padding-top: 100px; }
+            h1 { color: #818cf8; }
+        &lt;/style&gt;
+    &lt;/head&gt;
+    &lt;body&gt;
+        &lt;h1&gt;⚡ Live Page Served from Sandbox&lt;/h1&gt;
+        &lt;p&gt;This content was generated in-memory in less than a millisecond.&lt;/p&gt;
+    &lt;/body&gt;
+    &lt;/html&gt;
+    `;
+
+    return {
+        status: 200,
+        headers: { "Content-Type": "text/html" },
+        body: htmlCode
+    };
+}</pre>
+            </section>
+
+            <!-- Outbound fetch -->
+            <section id="outbound" class="card">
+                <h2>⚡ Outbound Network Requests (fetch)</h2>
+                <p>
+                    Mini-Lambda provides outbound HTTP request capabilities using a native <code>fetch(url, options)</code> wrapper. This allows functions to query third-party APIs, publish chat alerts, or forward webhook logs.
+                </p>
+
+                <div class="highlight-box" style="background: rgba(245, 158, 11, 0.03); border-color: rgba(245, 158, 11, 0.15);">
+                    <strong style="color: #fbbf24;">🛡️ Outbound Network Guardrails</strong>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><b>Strict 5-Second Timeout</b>: Requests that take longer than 5 seconds are auto-aborted to prevent memory deadlock.</li>
+                        <li><b>512KB Payload Cap</b>: Response body downloads are restricted to protect platform egress bandwidth.</li>
+                    </ul>
+                </div>
+
+                <pre>function handler(event) {
+    // Send dynamic alert webhook
+    const res = fetch("https://api.github.com/users/gautamkanakaraj");
+    
+    // Parse response body content
+    const data = res.json();
+
+    return {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            name: data.name,
+            bio: data.bio,
+            public_repos: data.public_repos
+        })
+    };
+}</pre>
+            </section>
+
+            <!-- Scheduled Tasks -->
+            <section id="cron" class="card">
+                <h2>⏰ Scheduled Cron Jobs (Background Tasks)</h2>
+                <p>
+                    Mini-Lambda hosts an automated task runner. You can set execution schedules in the configuration sidebar to trigger tasks automatically in the background without manual trigger URL requests.
+                </p>
+                <div class="feature-grid">
+                    <div class="feature-item">
+                        <strong>🛠️ 5-Field Standard Cron</strong>
+                        <span>Supports standard Unix cron syntax (e.g. <code>0 * * * *</code> for every hour, or <code>*/5 * * * *</code> for every 5 minutes).</span>
+                    </div>
+                    <div class="feature-item">
+                        <strong>💾 Persistent DB Logging</strong>
+                        <span>All background runs write execution logs and exit metrics to your Neon Database, enabling post-execution analytics.</span>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 Mini-Lambda Platform. Developed by Gautam Kanakaraj.</p>
+    </footer>
+
+    <script>
+        // Simple scrollspy and sidebar active indicator logic
+        const sections = document.querySelectorAll('section');
+        const navLinks = document.querySelectorAll('.sidebar-link');
+
+        window.addEventListener('scroll', () => {
+            let currentSectionId = '';
+            
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (window.scrollY >= sectionTop - 150) {
+                    currentSectionId = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${currentSectionId}`) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
