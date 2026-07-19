@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"serverless/control-plane/internal/db"
@@ -163,9 +164,13 @@ func main() {
 		fs.ServeHTTP(w, r)
 	}))
 
-	port := ":8080"
-	fmt.Printf("Control Plane running on port %s...\n", port)
-	if err := http.ListenAndServe(port, nil); err != nil {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	portStr := ":" + port
+	fmt.Printf("Control Plane running on port %s...\n", portStr)
+	if err := http.ListenAndServe(portStr, nil); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }
