@@ -48,11 +48,19 @@ func ProvisionUserDatabase(userID, userEmail string) (string, error) {
 	projectID := os.Getenv("NEON_PROJECT_ID")
 	masterConnStr := os.Getenv("NEON_DB_URL")
 
-	// Fallback to mock if credentials are placeholders or if DB is offline
-	if apiKey == "" || apiKey == "placeholder-neon-api-key" || projectID == "" || projectID == "placeholder-project-id" || MockMode {
+	// Return mock connection string ONLY if the server is in MockMode
+	if MockMode {
 		log.Printf("[Provisioning] Mocking DB creation for user %s (DB Name: %s)", userEmail, dbName)
 		mockConnStr := fmt.Sprintf("postgres://mock-host/user-%s", sanitizedID)
 		return mockConnStr, nil
+	}
+
+	// In real database mode, enforce having valid Neon credentials
+	if apiKey == "" || apiKey == "placeholder-neon-api-key" {
+		return "", fmt.Errorf("NEON_API_KEY is not configured in .env")
+	}
+	if projectID == "" || projectID == "placeholder-project-id" {
+		return "", fmt.Errorf("NEON_PROJECT_ID is not configured in .env")
 	}
 
 	// Construct HTTP Request to Neon API
