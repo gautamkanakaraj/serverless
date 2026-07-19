@@ -71,24 +71,25 @@ func InitDB() {
 		return
 	}
 
-	// In isolated agent containers, external DB queries are blocked. We retry quickly then fallback.
-	maxRetries := 3
+	// Neon databases automatically sleep after inactivity. A cold start can take 5-10 seconds.
+	// We retry with a 2-second sleep up to 15 times (30 seconds total) to ensure the database can wake up.
+	maxRetries := 15
 	for i := 1; i <= maxRetries; i++ {
 		err = DB.Ping()
 		if err == nil {
 			break
 		}
-		log.Printf("[DB Connection] Attempt %d/%d failed: %v. Retrying...", i, maxRetries, err)
+		log.Printf("[DB Connection] Attempt %d/%d failed: %v. The database might be sleeping (cold start). Retrying in 2 seconds...", i, maxRetries, err)
 		if i < maxRetries {
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Second)
 		}
 	}
 
 	if err != nil {
-		log.Printf("⚠️ WARNING: Neon DB unreachable. Falling back to IN-MEMORY MOCK DATABASE for offline testing.")
+		log.Printf("⚠️ WARNING: Neon DB unreachable after 30 seconds. Falling back to IN-MEMORY MOCK DATABASE for offline testing.")
 		MockMode = true
 	} else {
-		fmt.Println("Successfully connected to Neon Postgres!")
+		log.Println("🎉 Successfully connected to Neon Postgres!")
 	}
 
 }
