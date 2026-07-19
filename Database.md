@@ -46,6 +46,15 @@ graph TD
     PoolManager -->|Connection Pool B| UserDB_B
 ```
 
+### 👥 Purpose of the Replicated `users` Table in Tenant DBs
+To maintain relational integrity, the `users` table is replicated inside each customer's isolated database instance for two reasons:
+1. **Database Integrity (Foreign Key Constraints):** The local `functions` table has a foreign key constraint linking back to `users(id)`:
+   ```sql
+   user_id UUID REFERENCES users(id) ON DELETE CASCADE
+   ```
+   Because the customer's database is physically separate, PostgreSQL cannot query the master database to verify if a user ID exists. Storing a local copy of the user's ID and Email allows PostgreSQL to validate foreign key constraints during function deployments.
+2. **Self-Contained Backups & Portability:** By replicating basic profile metadata locally, the customer's database is completely independent. It can be moved, backed up, or restored to another database cluster without having database-level dependencies on the master database tables.
+
 ---
 
 ## 🔑 The Master Database
