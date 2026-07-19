@@ -78,6 +78,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Real Google Login Flow
+	log.Println("[Auth] Initiating redirect with RedirectURL:", oauthConfig.RedirectURL)
 	url := oauthConfig.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 }
