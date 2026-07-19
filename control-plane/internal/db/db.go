@@ -90,6 +90,18 @@ func InitDB() {
 		MockMode = true
 	} else {
 		log.Println("🎉 Successfully connected to Neon Postgres!")
+		// Automatically run schema migrations on the master database
+		schemaSQL, err := readSchemaFile()
+		if err == nil {
+			_, err = DB.Exec(schemaSQL)
+			if err != nil {
+				log.Printf("[DB Migrations] Failed to run schema migration on master DB: %v", err)
+			} else {
+				log.Println("[DB Migrations] Schema migrations successfully applied to master DB!")
+			}
+		} else {
+			log.Printf("[DB Migrations] Could not locate schema file to run migrations on master DB: %v", err)
+		}
 	}
 
 }
@@ -159,6 +171,19 @@ func GetUserDB(userID string) (*sql.DB, error) {
 	userDB.SetMaxOpenConns(10)
 	userDB.SetMaxIdleConns(2)
 	userDB.SetConnMaxLifetime(5 * time.Minute)
+
+	// Automatically run migrations on the user database to ensure it has the latest schema (e.g. cron_expression)
+	schemaSQL, err := readSchemaFile()
+	if err == nil {
+		_, migrateErr := userDB.Exec(schemaSQL)
+		if migrateErr != nil {
+			log.Printf("[DB Migrations] Failed to run schema migration on user DB %s: %v", userID, migrateErr)
+		} else {
+			log.Printf("[DB Migrations] Schema migrations successfully applied/verified for user DB %s", userID)
+		}
+	} else {
+		log.Printf("[DB Migrations] Could not locate schema file to run migrations on user DB %s: %v", userID, err)
+	}
 
 	UserDBPools[userID] = userDB
 	return userDB, nil
