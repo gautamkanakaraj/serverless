@@ -47,6 +47,9 @@ For a comprehensive breakdown of the components, request workflows, and database
 ## 🚀 Key Features
 
 * **Sub-millisecond Cold Starts**: Uses native Goja (ECMAScript 5.1 engine) to execute JavaScript code in memory without process fork overhead.
+* **Quick-start Template Presets**: Populates code templates instantly in the dashboard editor for Basic Handlers, lightweight REST API Endpoints, and full interactive Static HTML Sites.
+* **Outbound HTTP Requests (`fetch` API)**: Enables isolated serverless functions to perform GET/POST outbound calls (constrained by a secure 5s timeout and 512KB response limit).
+* **Scheduled Cron Jobs (Background Workers)**: Provides automated executions via a background Go scheduler thread using standard 5-field cron syntax or quick UI presets.
 * **Wasm & Python Sandboxing**: Integrates the Wasmtime JIT compiler to run Python code via `python-3.11.wasm`. Falls back gracefully to local python3 execution wrapped in timeouts and ulimit caps.
 * **Real-time Live Streaming**: Captures console output and broadcasts it to connected client terminals via WebSockets instantly.
 * **Auto DB-Backed Log Tracking**: Logs run metadata (durations, exit status, errors) to Neon Postgres for analytics.
@@ -110,13 +113,14 @@ http://localhost:8080
 ## 📖 API Documentation
 
 ### 1. `POST /api/deploy`
-Deploys a serverless function snippet.
+Deploys a serverless function snippet with an optional schedule.
 * **Headers**: `Content-Type: application/json`
 * **Request Body**:
   ```json
   {
     "code_content": "console.log('Hello World!');",
-    "language": "javascript"
+    "language": "javascript",
+    "cron_expression": "*/5 * * * *"
   }
   ```
 * **Response (201 Created)**:

@@ -709,9 +709,19 @@
 
         <div class="workspace">
             <div class="editor-pane">
-                <div class="editor-header">
-                    <div class="editor-tab-indicator"></div>
-                    <span id="editorHeader">index.js</span>
+                <div class="editor-header" style="justify-content: space-between; display: flex; align-items: center; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="editor-tab-indicator"></div>
+                        <span id="editorHeader">index.js</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Template:</span>
+                        <select id="templatePresetSelect" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-light); border-radius: 6px; color: #fff; padding: 3px 8px; font-size: 0.75rem; outline: none; cursor: pointer;">
+                            <option value="basic">Basic Handler</option>
+                            <option value="rest">REST API Endpoint</option>
+                            <option value="html">Static HTML Site</option>
+                        </select>
+                    </div>
                 </div>
                 <textarea id="codeEditor" spellcheck="false" placeholder="Write code here..."></textarea>
             </div>
@@ -1067,20 +1077,130 @@
         const terminal = document.getElementById('terminalOutput');
         const languageSelect = document.getElementById('languageSelect');
         const editorHeader = document.getElementById('editorHeader');
+        const templatePresetSelect = document.getElementById('templatePresetSelect');
 
         const templates = {
-            javascript: `// Write your serverless function here...
+            javascript: {
+                basic: `// Write your serverless function here...
 function handler(event) {
     console.log("Hello from Mini-Lambda JavaScript!");
     return { status: 200, message: "Success" };
 }`,
-            python: `# Write your serverless function here...
+                rest: `// Lightweight REST API Endpoint
+function handler(event) {
+    // Parse query parameters, method, and request body
+    const method = event.method;
+    const name = event.query.name || "Developer";
+    
+    console.log("Received REST API invocation. Method: " + method);
+    
+    return {
+        status: 200,
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            message: "Hello, " + name + "!",
+            method_received: method,
+            headers_received: event.headers,
+            timestamp: new Date().toISOString()
+        })
+    };
+}`,
+                html: `// Static HTML Hosting (Serverless Site)
+function handler(event) {
+    const pageTitle = "My Serverless Site";
+    const visitorName = event.query.name || "Guest";
+
+    const htmlContent = \`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>\${pageTitle}</title>
+        <style>
+            body {
+                font-family: system-ui, -apple-system, sans-serif;
+                background: linear-gradient(135deg, #090b10 0%, #161b22 100%);
+                color: #f0f6fc;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                margin: 0;
+            }
+            .card {
+                background: rgba(21, 27, 35, 0.85);
+                backdrop-filter: blur(8px);
+                border: 1px solid #30363d;
+                border-radius: 16px;
+                padding: 40px;
+                text-align: center;
+                max-width: 480px;
+                box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+            }
+            h1 { color: #58a6ff; margin: 0 0 12px 0; font-size: 2rem; }
+            p { color: #8b949e; line-height: 1.5; font-size: 1rem; }
+            button {
+                background: #238636;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-weight: 600;
+                margin-top: 15px;
+                transition: transform 0.2s, background 0.2s;
+            }
+            button:hover { background: #2ea043; transform: scale(1.05); }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h1>⚡ Serverless HTML Site</h1>
+            <p>Welcome, <strong>\${visitorName}</strong>! This entire response was served directly in-memory from a sandboxed serverless runtime.</p>
+            <button onclick="alert('Hello from Serverless JS!')">Click to Interact</button>
+        </div>
+    </body>
+    </html>
+    \`;
+
+    return {
+        status: 200,
+        headers: {
+            "Content-Type": "text/html"
+        },
+        body: htmlContent
+    };
+}`
+            },
+            python: {
+                basic: `# Write your serverless function here...
 print("Hello from Python Mini-Lambda!")
+`,
+                rest: `# REST API Preset (Python Fallback Sandbox)
+import json
+print("Python API executing")
+# In Python fallback, outputs printed to stdout are returned as text/plain.
+# You can output custom structured output to stdout if needed.
+`,
+                html: `# Static HTML template (Python Fallback Sandbox)
+# Outputs printed to stdout are served. To return HTML content type, Javascript (Goja) is recommended.
+print("<html><body><h1>Hello from Python!</h1></body></html>")
 `
+            }
         };
 
         // Initialize editor value
-        codeEditor.value = templates.javascript;
+        codeEditor.value = templates.javascript.basic;
+
+        function updateEditorTemplate() {
+            const lang = languageSelect.value;
+            const preset = templatePresetSelect.value;
+            codeEditor.value = templates[lang][preset];
+        }
 
         languageSelect.addEventListener('change', () => {
             const lang = languageSelect.value;
@@ -1089,7 +1209,11 @@ print("Hello from Python Mini-Lambda!")
             } else {
                 editorHeader.innerText = 'main.py';
             }
-            codeEditor.value = templates[lang];
+            updateEditorTemplate();
+        });
+
+        templatePresetSelect.addEventListener('change', () => {
+            updateEditorTemplate();
         });
 
         function logToTerminal(message) {
