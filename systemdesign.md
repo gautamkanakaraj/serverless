@@ -160,6 +160,19 @@ graph TD
 
 ## 🗄️ Database Schema Design
 
+The system employs a **multi-tenant database isolation architecture**. While metadata is saved in a central Master database, each customer is provisioned with their own isolated database to store their code and execution history.
+
+### 👥 Purpose of the Replicated `users` Table in Isolated Databases
+To maintain relational integrity, the `users` table is replicated inside each customer's isolated database instance for two reasons:
+1. **Database Integrity (Foreign Key Constraints):** The `functions` table has a foreign key constraint linking back to `users(id)`:
+   ```sql
+   user_id UUID REFERENCES users(id) ON DELETE CASCADE
+   ```
+   Because the customer's database is physically separate, PostgreSQL cannot query the master database to check if a user ID is valid. Storing a local copy of the user's ID and Email allows PostgreSQL to validate foreign key constraints during deployments.
+2. **Self-Contained Backups & Portability:** By replicating basic profile metadata, the customer's database is completely independent. It can be moved, backed up, or restored to another database cluster without having dependencies on the master database tables.
+
+### SQL Schema DDL (Idempotent)
+
 ```sql
 -- Enable pgcrypto extension for older PostgreSQL compatibility
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
